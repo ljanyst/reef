@@ -7,13 +7,13 @@
 
 import React, { Component } from 'react';
 
+import ReefNav from './ReefNav';
+
 class ReefApp extends Component {
   render() {
     return (
-      <div className="App">
-          <p>
-            Hello World!
-          </p>
+      <div>
+        <ReefNav />
       </div>
     );
   }

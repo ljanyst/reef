@@ -7,13 +7,19 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import './index.css';
+import { BrowserRouter } from 'react-router-dom';
 import * as serviceWorker from './serviceWorker';
+
+import './index.css';
+import 'bootstrap/dist/css/bootstrap.css';
+import 'bootstrap/dist/css/bootstrap-theme.css';
 
 import ReefApp from './components/ReefApp';
 
 ReactDOM.render(
-  <ReefApp />,
+  <BrowserRouter>
+     <ReefApp />
+  </BrowserRouter>,
   document.getElementById('root'));
 
 serviceWorker.register();
