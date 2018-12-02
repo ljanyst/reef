@@ -6,23 +6,17 @@
 //------------------------------------------------------------------------------
 
 import React, { Component } from 'react';
-import { Route, Switch } from 'react-router-dom';
 
-import ReefNav from './ReefNav';
-import ProjectList from './ProjectList';
+import TagPicker from './TagPicker';
 
-class ReefApp extends Component {
+class ProjectList extends Component {
   render() {
     return (
-      <div>
-        <ReefNav />
-        <Switch>
-          <Route exact path='/' component={ProjectList} />
-          <Route exact path='/projects' component={ProjectList} />
-        </Switch>
+      <div className='col-md-8 col-md-offset-2'>
+        <TagPicker/>
       </div>
     );
   }
 }
 
-export default ReefApp;
+export default ProjectList;
