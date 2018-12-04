@@ -10,6 +10,7 @@ import { Route, Switch } from 'react-router-dom';
 
 import ReefNav from './ReefNav';
 import ProjectList from './ProjectList';
+import WrongRoute from './WrongRoute';
 
 class ReefApp extends Component {
   render() {
@@ -19,6 +20,7 @@ class ReefApp extends Component {
         <Switch>
           <Route exact path='/' component={ProjectList} />
           <Route exact path='/projects' component={ProjectList} />
+          <Route component={WrongRoute} />
         </Switch>
       </div>
     );
