@@ -30,7 +30,7 @@ const colourStyles = {
     const color = chroma(data.color);
     return {
       ...styles,
-      backgroundColor: color.alpha(0.1).css()
+      backgroundColor: color.alpha(0.2).css()
     };
   },
   multiValueLabel: (styles, { data }) => ({
