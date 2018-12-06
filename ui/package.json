@@ -8,6 +8,7 @@
     "prop-types": "^15.6.2",
     "react": "^16.2.0",
     "react-bootstrap": "^0.32.4",
+    "react-color": "^2.14.1",
     "react-dom": "^16.6.3",
     "react-icons": "^3.2.2",
     "react-redux": "^5.1.1",
