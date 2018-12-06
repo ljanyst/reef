@@ -27,7 +27,7 @@ class ReefNav extends Component {
             <LinkContainer to="/projects">
               <NavItem><Glyphicon glyph='tasks'/> Projects</NavItem>
             </LinkContainer>
-            <LinkContainer to="/labels">
+            <LinkContainer to="/tags">
               <NavItem><Glyphicon glyph='tags'/> Tags</NavItem>
             </LinkContainer>
           </Nav>
