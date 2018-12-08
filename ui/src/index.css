@@ -50,3 +50,26 @@ code {
 .table-center {
     text-align: center;
 }
+
+.project-badge-belt {
+    text-align: right;
+    margin-bottom: 1em;
+}
+
+.project-panel-menu {
+    float: right;
+}
+
+.project-section-separator {
+    background: #ededed;
+    border-top: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+    margin-top: 1em;
+    padding-left: 1em;
+    font-weight: bold;
+}
+
+.project-progress-container {
+    padding-left: 2em;
+    padding-right: 2em;
+}
