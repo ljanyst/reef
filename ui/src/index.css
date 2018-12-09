@@ -52,7 +52,7 @@ code {
 }
 
 .project-badge-belt {
-    text-align: right;
+    float: right;
     margin-bottom: 1em;
 }
 
@@ -87,4 +87,22 @@ code {
 
 .project-work-session-number {
     float: left;
+}
+
+.project-info-panel {
+    color: Gray;
+    margin-bottom: 1.5em;
+}
+
+.project-time-spent {
+       display:inline-block;
+}
+
+.time-tooltip-table-label {
+    padding-right: 0.5em;
+    text-align: right;
+}
+
+.time-tooltip-table-value {
+    text-align: left;
 }

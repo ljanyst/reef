@@ -8,7 +8,7 @@
 import React, { Component } from 'react';
 import {
   Panel, ListGroup, ListGroupItem, ButtonGroup, Button, Glyphicon, Badge,
-  ProgressBar
+  ProgressBar, Tooltip, OverlayTrigger
 } from 'react-bootstrap';
 import { LinkContainer } from 'react-router-bootstrap';
 
@@ -16,7 +16,20 @@ import BadgeStyle from './BadgeStyle';
 
 class ProjectView extends Component {
   render() {
-
+    const timeTooltip = (
+      <Tooltip className="in" id="time-ooltip">
+        <table>
+          <tr>
+            <td className='time-tooltip-table-label'>This month:</td>
+            <td className='time-tooltip-table-value'>432 hours 41 minutes</td>
+          </tr>
+          <tr>
+            <td className='time-tooltip-table-label'>This week:</td>
+            <td className='time-tooltip-table-value'>12 hours 11 minutes</td>
+          </tr>
+        </table>
+      </Tooltip>
+    );
     return (
       <div className='col-md-6 col-md-offset-3'>
         <BadgeStyle name='purple' color='#5243AA' />
@@ -38,11 +51,19 @@ class ProjectView extends Component {
             </div>
           </Panel.Heading>
           <Panel.Body>
-            <div className="project-badge-belt">
-              <Badge bsClass='badge badge-purple'>Purple</Badge>
-              <Badge bsClass='badge badge-orange'>Orange</Badge>
-              <Badge bsClass='badge badge-blue'>Blue</Badge>
+            <div className="project-info-panel">
+              <OverlayTrigger placement="right" overlay={timeTooltip}>
+                <div className='project-time-spent'>
+                  Time spent: <b>3212 hours 23 minues</b>
+                </div>
+                              </OverlayTrigger>
+              <div className="project-badge-belt">
+                <Badge bsClass='badge badge-purple'>Purple</Badge>
+                <Badge bsClass='badge badge-orange'>Orange</Badge>
+                <Badge bsClass='badge badge-blue'>Blue</Badge>
+              </div>
             </div>
+            <div>
             Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus
             ac metus condimentum, venenatis lorem vel, blandit erat. Maecenas
             turpis justo, pulvinar at ipsum ut, aliquam finibus libero.
@@ -55,7 +76,8 @@ class ProjectView extends Component {
             Morbi porttitor venenatis dui, sed consequat nulla mattis eget.
             Donec auctor massa enim. Sed aliquam molestie sem, non volutpat
             justo sodales sed. Nunc tincidunt, massa sit amet ornare commodo,
-            arcu magna dictum augue, in dictum libero dui sed nisl. 
+            arcu magna dictum augue, in dictum libero dui sed nisl.
+            </div>
           </Panel.Body>
           <div className='project-section-separator'>Tasks</div>
             <div className='control-button-container'>
