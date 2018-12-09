@@ -7,7 +7,7 @@
 
 import React, { Component } from 'react';
 import {
-  Panel, ListGroup, ListGroupItem, ButtonGroup, Button, Glyphicon, Table, Badge,
+  Panel, ListGroup, ListGroupItem, ButtonGroup, Button, Glyphicon, Badge,
   ProgressBar
 } from 'react-bootstrap';
 import { LinkContainer } from 'react-router-bootstrap';
@@ -121,55 +121,60 @@ class ProjectView extends Component {
 
           <div className='project-section-separator'>Work sessions</div>
           <div className='control-button-container'>
-              <LinkContainer to="/add-project">
-                <Button bsSize='xsmall'>
-                  <Glyphicon glyph='plus' /> Add session
-                </Button>
-              </LinkContainer>
-            </div>
+            <LinkContainer to="/add-project">
+              <Button bsSize='xsmall'>
+                <Glyphicon glyph='plus' /> Add session
+              </Button>
+            </LinkContainer>
+          </div>
+          <ListGroup>
+            <ListGroupItem href='#'>
+              <div className='project-work-session-number'>
+                1.
+              </div>
+              <div className='project-work-session-data'>
+                Worked for <b>32 minutes</b> on Monday, December 12, 2018.
+                <div className="project-panel-menu">
+                  <ButtonGroup bsSize="xsmall">
+                    <Button>
+                      <Glyphicon glyph='remove'/>
+                    </Button>
+                  </ButtonGroup>
+                </div>
+              </div>
+            </ListGroupItem>
+            <ListGroupItem href='#'>
+              <div className='project-work-session-number'>
+                2.
+              </div>
+              <div className='project-work-session-data'>
+                Worked for <b>2 hour and 2 minutes</b> on Wednesday, December 14, 2018.
+                <div className="project-panel-menu">
+                  <ButtonGroup bsSize="xsmall">
+                    <Button>
+                      <Glyphicon glyph='remove'/>
+                    </Button>
+                  </ButtonGroup>
+                </div>
+              </div>
+            </ListGroupItem>
+            <ListGroupItem href='#'>
+              <div className='project-work-session-number'>
+                12333.
+              </div>
+              <div className='project-work-session-data'>
+                Worked for <b>4 hours and 45 minutes</b> on Friday, December 17, 2018.
+                <div className="project-panel-menu">
+                  <ButtonGroup bsSize="xsmall">
+                    <Button>
+                      <Glyphicon glyph='remove'/>
+                  </Button>
+                  </ButtonGroup>
+                </div>
+              </div>
+            </ListGroupItem>
+          </ListGroup>
 
-          <Table striped bordered condensed hover>
-            <thead>
-              <tr>
-                <th className='table-center'>#</th>
-                <th className='table-center'>Date</th>
-                <th className='table-center'>Time spent</th>
-                <th className='table-center'>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className='table-right'>1</td>
-                <td className='table-center'>2018-11-10</td>
-                <td className='table-right'>12:23</td>
-                <td className='table-center'>
-                  <ButtonGroup bsSize="xsmall">
-                    <Button>
-                      <Glyphicon glyph='pencil'/>
-                    </Button>
-                    <Button>
-                      <Glyphicon glyph='remove'/>
-                    </Button>
-                  </ButtonGroup>
-                </td>
-              </tr>
-              <tr>
-                <td className='table-right'>2</td>
-                <td className='table-center'>2018-12-11</td>
-                <td className='table-right'>32:32</td>
-                <td className='table-center'>
-                  <ButtonGroup bsSize="xsmall">
-                    <Button>
-                      <Glyphicon glyph='pencil'/>
-                    </Button>
-                    <Button>
-                      <Glyphicon glyph='remove'/>
-                    </Button>
-                  </ButtonGroup>
-                </td>
-              </tr>
-            </tbody>
-          </Table>
         </Panel>
       </div>
     );

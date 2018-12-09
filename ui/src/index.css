@@ -73,3 +73,18 @@ code {
     padding-left: 2em;
     padding-right: 2em;
 }
+
+.project-work-session-number {
+    border-right: 1px solid LightGray;
+    color: Gray;
+    text-align: right;
+    width: 3.5em;
+    max-width: 3.5em;
+    margin-right: 1em;
+    padding-right: 0.5em;
+
+}
+
+.project-work-session-number {
+    float: left;
+}
