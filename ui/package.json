@@ -9,6 +9,7 @@
     "prop-types": "^15.6.2",
     "react": "^16.2.0",
     "react-bootstrap": "^0.32.4",
+    "react-bootstrap-dialog": "^0.10.0",
     "react-color": "^2.14.1",
     "react-day-picker": "^7.2.4",
     "react-dom": "^16.6.3",
