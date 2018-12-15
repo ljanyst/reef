@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "antd": "^3.11.2",
     "bootstrap": "^3.3.7",
     "chroma-js": "^1.4.1",
     "input-number": "^1.1.1",
@@ -20,7 +21,8 @@
     "react-router-dom": "^4.3.1",
     "react-scripts": "2.1.1",
     "react-select": "^2.1.2",
-    "redux": "^4.0.1"
+    "redux": "^4.0.1",
+    "tinycolor2": "^1.4.1"
   },
   "scripts": {
     "start": "react-scripts start",
