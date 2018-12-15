@@ -6,185 +6,122 @@
 //------------------------------------------------------------------------------
 
 import React, { Component } from 'react';
-import {
-  Button, ButtonGroup, Glyphicon, Table, Panel, Badge
-} from 'react-bootstrap';
-import { LinkContainer } from 'react-router-bootstrap';
+import { Button, Icon, Tag, Table } from 'antd';
 
-import BadgeStyle from './BadgeStyle';
+import TagEditorModal from './TagEditorModal';
 
 class TagList extends Component {
-  render() {
+  showTagEdit = () => {
+    this.tagEditor.show();
+  }
 
+  onTagAdd = (name, color) => {
+    console.log(name, color);
+  }
+
+  render() {
+    const columns = [{
+      title: 'Tag',
+      dataIndex: 'tag',
+      render: tag => <Tag color={tag.color}>{tag.name}</Tag>
+    }, {
+      title: '# projects',
+      align: 'right',
+      dataIndex: 'numProjects'
+    }, {
+      title: 'Hours (total)',
+      align: 'right',
+      dataIndex: 'hoursTotal'
+    }, {
+      title: 'Hours (past year)',
+      align: 'right',
+      dataIndex: 'hoursYear'
+    }, {
+      title: 'Hours (past month)',
+      align: 'right',
+      dataIndex: 'hoursMonth'
+    }, {
+      title: 'Action',
+      align: 'right',
+      render: (_, record) => (
+        <Button.Group size="small">
+          <Button icon='edit' />
+          <Button icon='delete' />
+        </Button.Group>
+      )
+    }];
+
+    const data = [{
+      key: '1',
+      tag: {name: 'Purple', color: '#5243aa'},
+      numProjects: 21,
+      hoursTotal: '3423:44',
+      hoursYear: '423:44',
+      hoursMonth: '23:44'
+    }, {
+      key: '2',
+      tag: {name: 'Orange', color: '#ff8b00'},
+      numProjects: 32,
+      hoursTotal: '3423:34',
+      hoursYear: '323:44',
+      hoursMonth: '13:44'
+    }, {
+      key: '3',
+      tag: {name: 'Blue', color: '#0052cc'},
+      numProjects: 4,
+      hoursTotal: '2423:34',
+      hoursYear: '223:44',
+      hoursMonth: '3:44'
+    }, {
+      key: '4',
+      tag: {name: 'Green', color: '#36b37e'},
+      numProjects: 5,
+      hoursTotal: '1423:34',
+      hoursYear: '123:44',
+      hoursMonth: '2:44'
+    }, {
+      key: '5',
+      tag: {name: 'Ocean', color: '#00b8d9'},
+      numProjects: 2,
+      hoursTotal: '423:34',
+      hoursYear: '23:44',
+      hoursMonth: '1:44'
+    }, {
+      key: '6',
+      tag: {name: 'Yellow', color: '#ffc400'},
+      numProjects: 1,
+      hoursTotal: '323:34',
+      hoursYear: '13:44',
+      hoursMonth: '0:44'
+    }, {
+      key: '7',
+      tag: {name: 'Forest', color: '#00875a'},
+      numProjects: 1,
+      hoursTotal: '223:34',
+      hoursYear: '3:44',
+      hoursMonth: '0:34'
+    }];
     return (
       <div className='col-md-8 col-md-offset-2'>
+        <TagEditorModal
+          ref={(el) => { this.tagEditor = el; }}
+          onSuccess={this.onTagAdd}
+          title='Add tag'
+          />
         <h2>Tags</h2>
         <div className='control-button-container'>
-          <LinkContainer to="/add-tag">
-            <Button bsSize='xsmall'>
-              <Glyphicon glyph='plus' /> Add tag
-            </Button>
-          </LinkContainer>
+          <Button onClick={this.showTagEdit} size='small'>
+            <Icon type='plus' /> Add tag
+          </Button>
         </div>
-        <BadgeStyle name='purple' color='#5243AA' />
-        <BadgeStyle name='orange' color='#FF8B00' />
-        <BadgeStyle name='blue' color='#0052CC' />
-        <BadgeStyle name='green' color='#36B37E' />
-        <BadgeStyle name='ocean' color='#00B8D9' />
-        <BadgeStyle name='yellow' color='#FFC400' />
-        <BadgeStyle name='forest' color='#00875A'/>
-
-        <Panel>
-          <Table striped bordered condensed hover>
-            <thead>
-              <tr>
-                <th className='table-center'>#</th>
-                <th className='table-center'>Tag</th>
-                <th className='table-center'># projects</th>
-                <th className='table-center'>Hours (total)</th>
-                <th className='table-center'>Hours (this year)</th>
-                <th className='table-center'>Hours (this month)</th>
-                <th className='table-center'>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className='table-right'>1</td>
-                <td><Badge bsClass='badge badge-purple'>Purple</Badge></td>
-                <td className='table-right'>12</td>
-                <td className='table-right'>3423:44</td>
-                <td className='table-right'>423:44</td>
-                <td className='table-right'>23:44</td>
-                <td className='table-center'>
-                  <ButtonGroup bsSize="xsmall">
-                    <Button>
-	                    <Glyphicon glyph='pencil'/>
-	                  </Button>
-                    <Button>
-                      
-	                    <Glyphicon glyph='remove'/>
-	                  </Button>
-                  </ButtonGroup>
-                </td>
-              </tr>
-              <tr>
-                <td className='table-right'>2</td>
-                <td><Badge bsClass='badge badge-orange'>Orange</Badge></td>
-                <td className='table-right'>32</td>
-                <td className='table-right'>3423:34</td>
-                <td className='table-right'>323:44</td>
-                <td className='table-right'>13:44</td>
-                <td className='table-center'>
-                  <ButtonGroup bsSize="xsmall">
-                    <Button>
-	                    <Glyphicon glyph='pencil'/>
-	                  </Button>
-                    <Button>
-                      
-	                    <Glyphicon glyph='remove'/>
-	                  </Button>
-                  </ButtonGroup>
-                </td>
-              </tr>
-              <tr>
-                <td className='table-right'>3</td>
-                <td><Badge bsClass='badge badge-blue'>Blue</Badge></td>
-                <td className='table-right'>4</td>
-                <td className='table-right'>2423:34</td>
-                <td className='table-right'>223:44</td>
-                <td className='table-right'>3:44</td>
-                <td className='table-center'>
-                  <ButtonGroup bsSize="xsmall">
-                    <Button>
-	                    <Glyphicon glyph='pencil'/>
-	                  </Button>
-                    <Button>
-                      
-	                    <Glyphicon glyph='remove'/>
-	                  </Button>
-                  </ButtonGroup>
-                </td>
-              </tr>
-              <tr>
-                <td className='table-right'>4</td>
-                <td><Badge bsClass='badge badge-green'>Green</Badge></td>
-                <td className='table-right'>5</td>
-                <td className='table-right'>1423:34</td>
-                <td className='table-right'>123:44</td>
-                <td className='table-right'>2:44</td>
-                <td className='table-center'>
-                  <ButtonGroup bsSize="xsmall">
-                    <Button>
-	                    <Glyphicon glyph='pencil'/>
-	                  </Button>
-                    <Button>
-                      
-	                    <Glyphicon glyph='remove'/>
-	                  </Button>
-                  </ButtonGroup>
-                </td>
-              </tr>
-              <tr>
-                <td className='table-right'>5</td>
-                <td><Badge bsClass='badge badge-ocean'>Ocean</Badge></td>
-                <td className='table-right'>2</td>
-                <td className='table-right'>423:34</td>
-                <td className='table-right'>23:44</td>
-                <td className='table-right'>1:44</td>
-                <td className='table-center'>
-                  <ButtonGroup bsSize="xsmall">
-                    <Button>
-	                    <Glyphicon glyph='pencil'/>
-	                  </Button>
-                    <Button>
-                      
-	                    <Glyphicon glyph='remove'/>
-	                  </Button>
-                  </ButtonGroup>
-                </td>
-              </tr>
-              <tr>
-                <td className='table-right'>6</td>
-                <td><Badge bsClass='badge badge-yellow'>Yellow</Badge></td>
-                <td className='table-right'>1</td>
-                <td className='table-right'>323:34</td>
-                <td className='table-right'>13:44</td>
-                <td className='table-right'>0:44</td>
-                <td className='table-center'>
-                  <ButtonGroup bsSize="xsmall">
-                    <Button>
-	                    <Glyphicon glyph='pencil'/>
-	                  </Button>
-                    <Button>
-                      
-	                    <Glyphicon glyph='remove'/>
-	                  </Button>
-                  </ButtonGroup>
-                </td>
-
-              </tr>
-              <tr>
-                <td className='table-right'>7</td>
-                <td><Badge bsClass='badge badge-forest'>Forest</Badge></td>
-                <td className='table-right'>1</td>
-                <td className='table-right'>223:34</td>
-                <td className='table-right'>3:44</td>
-                <td className='table-right'>0:34</td>
-                <td className='table-center'>
-                  <ButtonGroup bsSize="xsmall">
-                    <Button>
-	                    <Glyphicon glyph='pencil'/>
-	                  </Button>
-                    <Button>
-                      
-	                    <Glyphicon glyph='remove'/>
-	                  </Button>
-                  </ButtonGroup>
-                </td>
-              </tr>
-            </tbody>
-          </Table>
-        </Panel>
+        <div>
+          <Table
+            columns={columns}
+            dataSource={data}
+            size='small'
+            pagination={false}
+            />
+        </div>
       </div>
     );
   }

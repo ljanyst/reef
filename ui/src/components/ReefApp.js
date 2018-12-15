@@ -14,6 +14,8 @@ import ProjectView from './ProjectView';
 import TagList from './TagList';
 import WrongRoute from './WrongRoute';
 
+import 'antd/dist/antd.css';
+
 class ReefApp extends Component {
   render() {
     return (
