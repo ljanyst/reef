@@ -6,61 +6,144 @@
 //------------------------------------------------------------------------------
 
 import React, { Component } from 'react';
-import {
-  Panel, ListGroup, ListGroupItem, ButtonGroup, Button, Glyphicon, Badge,
-  ProgressBar, Tooltip, OverlayTrigger
-} from 'react-bootstrap';
-import { LinkContainer } from 'react-router-bootstrap';
+import { Card, Button, Tag, Tooltip, Icon, Progress, Table } from 'antd';
 
-import BadgeStyle from './BadgeStyle';
+const styles = {
+  text: {
+    marginBottom: '1em',
+    marginLeft: '1em',
+    marginRight: '1em'
+  },
+  tooltipTableLabel: {
+    paddingRight: '0.5em',
+    textAlign: 'right'
+  },
+  tooltipTableValue: {
+    textAlign: 'left'
+  },
+  sectionSeparator: {
+    background: '#ededed',
+    borderTop: '1px solid #ddd',
+    borderBottom: '1px solid #ddd',
+    marginTop: '2em',
+    marginBottom: '2em',
+    paddingLeft: '1em',
+    fontWeight: 'bold'
+  },
+  workSessionNumber: {
+    borderRight: '1px solid LightGray',
+    color: 'Gray',
+    textAlign: 'right',
+    width: '4em',
+    maxWidth: '4em',
+    marginRight: '1em',
+    paddingRight: '0.5em',
+    float: 'left'
+  },
+  infoPanel: {
+    color: 'Gray',
+    marginBottom: '1.5em'
+  }
+};
 
 class ProjectView extends Component {
   render() {
     const timeTooltip = (
-      <Tooltip className="in" id="time-ooltip">
-        <table>
+      <table>
+        <tbody>
           <tr>
-            <td className='time-tooltip-table-label'>This month:</td>
-            <td className='time-tooltip-table-value'>432 hours 41 minutes</td>
+            <td style={styles.tooltipTableLabel}>This month:</td>
+            <td style={styles.tooltipTableValue}>432 hours 41 minutes</td>
           </tr>
           <tr>
-            <td className='time-tooltip-table-label'>This week:</td>
-            <td className='time-tooltip-table-value'>12 hours 11 minutes</td>
+            <td style={styles.tooltipTableLabel}>This week:</td>
+            <td style={styles.tooltipTableValue}>12 hours 11 minutes</td>
           </tr>
-        </table>
-      </Tooltip>
+        </tbody>
+      </table>
     );
+
+    const title = (
+      <div>
+        Advanced Math #1
+        <div style={{float: 'right'}}>
+          <Button.Group size="small">
+            <Button icon='edit' />
+            <Button icon='delete' />
+          </Button.Group>
+        </div>
+      </div>
+    );
+
+    const taskColumns = [{
+      dataIndex: 'key',
+      render: (_, record) => (
+        <div>
+          {record.description}
+          <div style={{float: 'right'}}>
+            <Button.Group size="small">
+              <Button icon='check-circle' />
+              <Button icon='edit' />
+              <Button icon='delete' />
+            </Button.Group>
+          </div>
+        </div>)
+    }];
+
+    const taskData =[{
+      key: 'asdf1',
+      description: 'Item 1'
+    }, {
+      key: 'asdf2',
+      description: 'Item 2'
+    }, {
+      key: 'asdf3',
+      description: 'Item 3'
+    }];
+
+    const sessionColumns = [{
+      dataIndex: 'key',
+      render: (_, record) => (
+        <div>
+          <div style={styles.workSessionNumber}>
+            {record.key}.
+          </div>
+          <div>
+            {record.data}.
+            <div style={{float: 'right'}}>
+              <Button.Group size="small">
+                <Button icon='delete' />
+              </Button.Group>
+            </div>
+          </div>
+        </div>
+      )}];
+
+    const sessionData = [{
+      key: '1',
+      data: 'Worked for <b>2 hour and 2 minutes</b> on Wednesday, December 14, 2018.'
+    }, {
+      key: '2',
+      data: 'Worked for <b>3 hours and 25 minutes</b> on Thursday, December 14, 2018.'
+    },  {
+      key: '12343',
+      data: 'Worked for <b>4 hours and 45 minutes</b> on Friday, December 17, 2018.'
+    }];
+
     return (
       <div className='col-md-6 col-md-offset-3'>
-        <BadgeStyle name='purple' color='#5243AA' />
-        <BadgeStyle name='orange' color='#FF8B00' />
-        <BadgeStyle name='blue' color='#0052CC' />
-
-        <Panel>
-          <Panel.Heading>
-            Advanced Math #1
-            <div className="project-panel-menu">
-              <ButtonGroup bsSize="xsmall">
-                <Button>
-                  <Glyphicon glyph='pencil'/>
-                </Button>
-                <Button>
-                  <Glyphicon glyph='remove'/>
-                </Button>
-              </ButtonGroup>
-            </div>
-          </Panel.Heading>
-          <Panel.Body>
+        <Card title={title}>
+          <div style={styles.text}>
             <div className="project-info-panel">
-              <OverlayTrigger placement="right" overlay={timeTooltip}>
-                <div className='project-time-spent'>
+              <Tooltip placement="right" title={timeTooltip}>
+                <div style={{display: 'inline-block'}}>
                   Time spent: <b>3212 hours 23 minues</b>
                 </div>
-                              </OverlayTrigger>
-              <div className="project-badge-belt">
-                <Badge bsClass='badge badge-purple'>Purple</Badge>
-                <Badge bsClass='badge badge-orange'>Orange</Badge>
-                <Badge bsClass='badge badge-blue'>Blue</Badge>
+              </Tooltip>
+              <div style={{float: 'right'}}>
+                <Tag color='#5243aa'>Purple</Tag>
+                <Tag color='#ff8b00'>Orange</Tag>
+                <Tag color='#0052cc'>Blue</Tag>
               </div>
             </div>
             <div>
@@ -78,126 +161,37 @@ class ProjectView extends Component {
             justo sodales sed. Nunc tincidunt, massa sit amet ornare commodo,
             arcu magna dictum augue, in dictum libero dui sed nisl.
             </div>
-          </Panel.Body>
-          <div className='project-section-separator'>Tasks</div>
-            <div className='control-button-container'>
-              <LinkContainer to="/add-project">
-                <Button bsSize='xsmall'>
-                  <Glyphicon glyph='plus' /> Add task
-                </Button>
-              </LinkContainer>
-            </div>
-            <div className='project-progress-container'>
-              <ProgressBar striped bsStyle='info' now={5} />
-            </div>
-          <ListGroup>
-            <ListGroupItem href='#'>
-              Item 1
-              <div className="project-panel-menu">
-                <ButtonGroup bsSize="xsmall">
-                  <Button>
-                    <Glyphicon glyph='unchecked'/>
-                  </Button>
-                  <Button>
-                    <Glyphicon glyph='pencil'/>
-                  </Button>
-                  <Button>
-                    <Glyphicon glyph='remove'/>
-                  </Button>
-                </ButtonGroup>
-              </div>
-            </ListGroupItem>
-            <ListGroupItem href='#'>
-              Item 2
-              <div className="project-panel-menu">
-                <ButtonGroup bsSize="xsmall">
-                  <Button>
-                    <Glyphicon glyph='unchecked'/>
-                  </Button>
-                  <Button>
-                    <Glyphicon glyph='pencil'/>
-                  </Button>
-                  <Button>
-                    <Glyphicon glyph='remove'/>
-                  </Button>
-                </ButtonGroup>
-              </div>
-            </ListGroupItem>
-            <ListGroupItem href='#'>
-              Item 3
-              <div className="project-panel-menu">
-                <ButtonGroup bsSize="xsmall">
-                  <Button>
-                    <Glyphicon glyph='unchecked'/>
-                  </Button>
-                  <Button>
-                    <Glyphicon glyph='pencil'/>
-                  </Button>
-                  <Button>
-                    <Glyphicon glyph='remove'/>
-                  </Button>
-                </ButtonGroup>
-              </div>
-            </ListGroupItem>
-          </ListGroup>
-
-          <div className='project-section-separator'>Work sessions</div>
-          <div className='control-button-container'>
-            <LinkContainer to="/add-project">
-              <Button bsSize='xsmall'>
-                <Glyphicon glyph='plus' /> Add session
-              </Button>
-            </LinkContainer>
           </div>
-          <ListGroup>
-            <ListGroupItem href='#'>
-              <div className='project-work-session-number'>
-                1.
-              </div>
-              <div className='project-work-session-data'>
-                Worked for <b>32 minutes</b> on Monday, December 12, 2018.
-                <div className="project-panel-menu">
-                  <ButtonGroup bsSize="xsmall">
-                    <Button>
-                      <Glyphicon glyph='remove'/>
-                    </Button>
-                  </ButtonGroup>
-                </div>
-              </div>
-            </ListGroupItem>
-            <ListGroupItem href='#'>
-              <div className='project-work-session-number'>
-                2.
-              </div>
-              <div className='project-work-session-data'>
-                Worked for <b>2 hour and 2 minutes</b> on Wednesday, December 14, 2018.
-                <div className="project-panel-menu">
-                  <ButtonGroup bsSize="xsmall">
-                    <Button>
-                      <Glyphicon glyph='remove'/>
-                    </Button>
-                  </ButtonGroup>
-                </div>
-              </div>
-            </ListGroupItem>
-            <ListGroupItem href='#'>
-              <div className='project-work-session-number'>
-                12333.
-              </div>
-              <div className='project-work-session-data'>
-                Worked for <b>4 hours and 45 minutes</b> on Friday, December 17, 2018.
-                <div className="project-panel-menu">
-                  <ButtonGroup bsSize="xsmall">
-                    <Button>
-                      <Glyphicon glyph='remove'/>
-                  </Button>
-                  </ButtonGroup>
-                </div>
-              </div>
-            </ListGroupItem>
-          </ListGroup>
-
-        </Panel>
+          <div style={styles.sectionSeparator}>Tasks</div>
+          <div className='control-button-container'>
+            <Button size='small'>
+              <Icon type='plus' /> Add task
+            </Button>
+          </div>
+          <div style={{margin: '1em'}}>
+            <Progress percent={50} />
+          </div>
+          <Table
+            showHeader={false}
+            columns={taskColumns}
+            dataSource={taskData}
+            size='small'
+            pagination={false}
+            />
+          <div style={styles.sectionSeparator}>Work sessions</div>
+          <div className='control-button-container'>
+            <Button size='small'>
+              <Icon type='plus' /> Add session
+            </Button>
+          </div>
+          <Table
+            showHeader={false}
+            columns={sessionColumns}
+            dataSource={sessionData}
+            size='small'
+            pagination={false}
+            />
+        </Card>
       </div>
     );
   }
