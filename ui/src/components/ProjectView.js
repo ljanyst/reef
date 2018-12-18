@@ -134,7 +134,7 @@ class ProjectView extends Component {
       <div className='col-md-6 col-md-offset-3'>
         <Card title={title}>
           <div style={styles.text}>
-            <div className="project-info-panel">
+            <div style={{marginBottom: '1.5em', color: 'Gray'}}>
               <Tooltip placement="right" title={timeTooltip}>
                 <div style={{display: 'inline-block'}}>
                   Time spent: <b>3212 hours 23 minues</b>
