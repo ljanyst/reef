@@ -11,8 +11,8 @@ import { BrowserRouter } from 'react-router-dom';
 import * as serviceWorker from './serviceWorker';
 
 import './index.css';
-import 'bootstrap/dist/css/bootstrap.css';
-import 'bootstrap/dist/css/bootstrap-theme.css';
+import './bootstrap-layout.css';
+import 'antd/dist/antd.css';
 
 import ReefApp from './components/ReefApp';
 
