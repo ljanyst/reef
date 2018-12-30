@@ -131,7 +131,7 @@ class ProjectView extends Component {
     }];
 
     return (
-      <div className='col-md-6 col-md-offset-3'>
+      <div className='col-md-6 col-md-offset-3 app-container'>
         <Card title={title}>
           <div style={styles.text}>
             <div style={{marginBottom: '1.5em', color: 'Gray'}}>

@@ -17,3 +17,8 @@ code {
     text-align: center;
     margin: 1em;
 }
+
+.app-container {
+    margin-top: 2em;
+    margin-bottom: 2em;
+}

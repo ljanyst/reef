@@ -102,7 +102,7 @@ class TagList extends Component {
       hoursMonth: '0:34'
     }];
     return (
-      <div className='col-md-8 col-md-offset-2'>
+      <div className='col-md-8 col-md-offset-2 app-container'>
         <TagEditorModal
           ref={(el) => { this.tagEditor = el; }}
           onSuccess={this.onTagAdd}

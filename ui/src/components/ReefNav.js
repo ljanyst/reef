@@ -6,33 +6,52 @@
 //------------------------------------------------------------------------------
 
 import React, { Component } from 'react';
-import { Navbar, Nav, NavItem, Glyphicon } from 'react-bootstrap';
-import { LinkContainer } from 'react-router-bootstrap';
 import { Link } from 'react-router-dom';
+import { Menu, Icon } from 'antd';
+
+const styles = {
+  logo: {
+    float: 'left',
+    marginLeft: '12%',
+    fontSize: 'x-large'
+  }
+};
 
 class ReefNav extends Component {
+  state = {
+    current: 'mail'
+  }
+
+  handleClick = (e) => {
+    this.setState({
+      current: e.key
+    });
+  }
+
   render() {
     return (
-      <Navbar inverse collapseOnSelect>
-        <Navbar.Header>
-          <Navbar.Brand>
-            <Link to="/">
-              Reef
-            </Link>
-          </Navbar.Brand>
-          <Navbar.Toggle />
-        </Navbar.Header>
-        <Navbar.Collapse>
-          <Nav pullRight>
-            <LinkContainer to="/projects">
-              <NavItem><Glyphicon glyph='tasks'/> Projects</NavItem>
-            </LinkContainer>
-            <LinkContainer to="/tags">
-              <NavItem><Glyphicon glyph='tags'/> Tags</NavItem>
-            </LinkContainer>
-          </Nav>
-        </Navbar.Collapse>
-      </Navbar>
+      <Menu
+        theme='dark'
+        style={{textAlign: 'right'}}
+        onClick={this.handleClick}
+        selectedKeys={[this.state.current]}
+        mode="horizontal"
+        >
+        <Menu.SubMenu
+          style={styles.logo}
+          title={<span className="Title">Reef</span>}>
+        </Menu.SubMenu>
+        <Menu.Item key="projects">
+          <Link to='/projects'>
+            <Icon type="project" />Projects
+          </Link>
+        </Menu.Item>
+        <Menu.Item key="tags" style={{marginRight: '12%'}}>
+          <Link to='/tags'>
+            <Icon type="tag" />Tags
+          </Link>
+        </Menu.Item>
+      </Menu>
     );
   }
 }
