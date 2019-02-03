@@ -1,0 +1,23 @@
+{
+  "Web": {
+    "BindAddresses": [
+      {
+        "Host": "fe80::7bf:88c6:6820:3c68",
+        "Port": 7651
+      },
+      {
+        "Host": "127.0.0.1",
+        "Port": 7651
+      }
+    ],
+    "Https": {
+      "Enabled": true,
+      "Cert": "cert.pem",
+      "Key": "key.pem",
+      "Chain": "chain.pem"
+    }
+  },
+  "Backend": {
+    "DatabaseDirectory": "data"
+  }
+}

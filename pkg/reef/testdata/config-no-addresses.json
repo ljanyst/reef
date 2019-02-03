@@ -1,0 +1,13 @@
+{
+  "Web": {
+    "Https": {
+      "Enabled": true,
+      "Cert": "cert.pem",
+      "Key": "key.pem",
+      "Chain": "chain.pem"
+    }
+  },
+  "Backend": {
+    "DatabaseDirectory": "data"
+  }
+}
