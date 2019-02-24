@@ -12,6 +12,7 @@ package reef
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -21,6 +22,12 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		if strings.HasPrefix(r.RemoteAddr, "127.0.0.1") {
+			return true
+		}
+		return false
+	},
 }
 
 type WebSocket struct {
