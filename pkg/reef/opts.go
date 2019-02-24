@@ -21,9 +21,8 @@ type BindAddress struct {
 }
 
 type HttpsOpts struct {
-	Cert  string // Certificate file (mandatory)
-	Key   string // Key file (mandatory)
-	Chain string // Certificate chain file (optional)
+	Cert string // Certificate file (mandatory)
+	Key  string // Key file (mandatory)
 }
 
 type WebOpts struct {
