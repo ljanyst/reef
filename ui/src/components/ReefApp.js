@@ -9,6 +9,7 @@ import React, { Component } from 'react';
 import { Route, Switch } from 'react-router-dom';
 
 import ReefNav from './ReefNav';
+import BackendStatus from './BackendStatus';
 import ProjectList from './ProjectList';
 import ProjectView from './ProjectView';
 import TagList from './TagList';
@@ -19,6 +20,8 @@ class ReefApp extends Component {
     return (
       <div>
         <ReefNav />
+        <BackendStatus />
+
         <Switch>
           <Route exact path='/' component={ProjectList} />
           <Route exact path='/projects' component={ProjectList} />
