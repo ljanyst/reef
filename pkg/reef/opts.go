@@ -15,15 +15,15 @@ import (
 )
 
 type BindAddress struct {
-	Host string // Either host name or an IP address (IPv4 or IPv6)
-	Port int
+	Host    string // Either host name or an IP address (IPv4 or IPv6)
+	Port    int
+	IsHttps bool
 }
 
 type HttpsOpts struct {
-	Enabled bool   // Enable https
-	Cert    string // Certificate file (mandatory)
-	Key     string // Key file (mandatory)
-	Chain   string // Certificate chain file (optional)
+	Cert  string // Certificate file (mandatory)
+	Key   string // Key file (mandatory)
+	Chain string // Certificate chain file (optional)
 }
 
 type WebOpts struct {
@@ -43,8 +43,7 @@ type ReefOpts struct {
 // Create a ReefOpts object with default settings filled in
 func NewReefOpts() (opts *ReefOpts) {
 	opts = new(ReefOpts)
-	opts.Web.BindAddresses = []BindAddress{BindAddress{"localhost", 7651}}
-	opts.Web.Https.Enabled = false
+	opts.Web.BindAddresses = []BindAddress{BindAddress{"localhost", 7651, false}}
 	opts.Backend.DatabaseDirectory = "data"
 	return
 }
