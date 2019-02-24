@@ -9,10 +9,11 @@ package main
 
 import (
 	"flag"
+	"os"
+
 	"github.com/ljanyst/reef/pkg/reef"
 	log "github.com/sirupsen/logrus"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
-	"os"
 )
 
 func main() {
@@ -59,4 +60,6 @@ func main() {
 			log.Fatalf("Failed to read configuration: %s", err)
 		}
 	}
+
+	reef.RunWebServer(opts)
 }
