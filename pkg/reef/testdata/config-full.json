@@ -2,19 +2,19 @@
   "Web": {
     "BindAddresses": [
       {
-        "Host": "fe80::7bf:88c6:6820:3c68",
-        "Port": 7651
+        "Host": "[fe80::7bf:88c6:6820:3c68]",
+        "Port": 7652,
+        "IsHttps": false
       },
       {
         "Host": "127.0.0.1",
-        "Port": 7651
+        "Port": 7651,
+        "IsHttps": true
       }
     ],
     "Https": {
-      "Enabled": true,
       "Cert": "cert.pem",
-      "Key": "key.pem",
-      "Chain": "chain.pem"
+      "Key": "key.pem"
     }
   },
   "Backend": {
