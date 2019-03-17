@@ -31,6 +31,7 @@ var upgrader = websocket.Upgrader{
 }
 
 type WebSocket struct {
+	db *Database
 }
 
 func (handler WebSocket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -56,6 +57,11 @@ func (handler WebSocket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func RunWebServer(opts *ReefOpts) {
 	ui := http.FileServer(Assets)
 	var webSocket WebSocket
+	var err error
+	webSocket.db, err = NewDatabase(opts.Backend.DatabaseDirectory)
+	if err != nil {
+		log.Fatal("Unable to initialize the database: ", err)
+	}
 	http.Handle("/", ui)
 	http.Handle("/ws", webSocket)
 
