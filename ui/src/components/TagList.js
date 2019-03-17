@@ -6,9 +6,10 @@
 //------------------------------------------------------------------------------
 
 import React, { Component } from 'react';
-import { Button, Icon, Tag, Table } from 'antd';
+import { Button, Icon, Tag, Table, message } from 'antd';
 
 import TagEditorModal from './TagEditorModal';
+import { tagNew } from '../utils/backendActions';
 
 class TagList extends Component {
   showTagEdit = () => {
@@ -16,7 +17,10 @@ class TagList extends Component {
   }
 
   onTagAdd = (name, color) => {
-    console.log(name, color);
+    tagNew(name, color)
+      .catch(error => {
+        setTimeout(() => message.error(error.message), 500);
+      });
   }
 
   render() {
