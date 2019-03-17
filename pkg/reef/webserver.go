@@ -10,6 +10,7 @@
 package reef
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -34,6 +35,56 @@ type WebSocket struct {
 	db *Database
 }
 
+type Request struct {
+	Id           string `json:"id"`
+	Type         string `json:"type"`
+	Action       string `json:"action"`
+	ActionParams map[string]string
+}
+
+type request Request
+
+func (req *Request) UnmarshalJSON(bs []byte) (err error) {
+	r := request{}
+	if err = json.Unmarshal(bs, &r); err != nil {
+		return
+	}
+
+	*req = Request(r)
+	m := make(map[string]string)
+
+	if err = json.Unmarshal(bs, &m); err != nil {
+		return
+	}
+
+	delete(m, "id")
+	delete(m, "type")
+	delete(m, "action")
+	req.ActionParams = m
+	return nil
+}
+
+type ActionResponse struct {
+	Id      string `json:"id"`
+	Type    string `json:"type"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+type BackendMessage struct {
+	Type string            `json:"type"`
+	Data map[string]string `json:"data"`
+}
+
+func writeErrorResponse(conn *websocket.Conn, msgId string, err error) error {
+	resp := ActionResponse{msgId, "ACTION_EXECUTED", "ERROR", err.Error()}
+	data, err := json.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	return conn.WriteMessage(websocket.TextMessage, data)
+}
+
 func (handler WebSocket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -42,13 +93,25 @@ func (handler WebSocket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for {
-		messageType, p, err := conn.ReadMessage()
+		messageType, data, err := conn.ReadMessage()
 		if err != nil {
-			log.Error("Unable to read from a websocket: ", err)
 			return
 		}
-		if err := conn.WriteMessage(messageType, p); err != nil {
-			log.Error("Unable to write a websocket: ", err)
+
+		if messageType != websocket.TextMessage {
+			continue
+		}
+
+		var request Request
+		err = json.Unmarshal(data, &request)
+		if err != nil {
+			log.Error("Unable to unmarshal request: ", err)
+			continue
+		}
+
+		err = writeErrorResponse(conn, request.Id, fmt.Errorf("Unsupported action: %s", request.Type))
+		if err != nil {
+			log.Error("Unable to write to a websocket: ", err)
 			return
 		}
 	}
