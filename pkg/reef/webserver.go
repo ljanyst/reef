@@ -10,7 +10,6 @@
 package reef
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -31,102 +30,37 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type WebSocket struct {
+type WebSocketHandler struct {
 	db *Database
 }
 
-type Request struct {
-	Id           string `json:"id"`
-	Type         string `json:"type"`
-	Action       string `json:"action"`
-	ActionParams map[string]string
-}
-
-type request Request
-
-func (req *Request) UnmarshalJSON(bs []byte) (err error) {
-	r := request{}
-	if err = json.Unmarshal(bs, &r); err != nil {
-		return
-	}
-
-	*req = Request(r)
-	m := make(map[string]string)
-
-	if err = json.Unmarshal(bs, &m); err != nil {
-		return
-	}
-
-	delete(m, "id")
-	delete(m, "type")
-	delete(m, "action")
-	req.ActionParams = m
-	return nil
-}
-
-type ActionResponse struct {
-	Id      string `json:"id"`
-	Type    string `json:"type"`
-	Status  string `json:"status"`
-	Message string `json:"message"`
-}
-
-type BackendMessage struct {
-	Type string            `json:"type"`
-	Data map[string]string `json:"data"`
-}
-
-func writeErrorResponse(conn *websocket.Conn, msgId string, err error) error {
-	resp := ActionResponse{msgId, "ACTION_EXECUTED", "ERROR", err.Error()}
-	data, err := json.Marshal(resp)
-	if err != nil {
-		return err
-	}
-	return conn.WriteMessage(websocket.TextMessage, data)
-}
-
-func (handler WebSocket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Error("Unable to upgrade: ", err)
 		return
 	}
 
-	for {
-		messageType, data, err := conn.ReadMessage()
-		if err != nil {
-			return
-		}
+	controller := NewController(handler.db, conn)
+	controller.HandleConnection()
+}
 
-		if messageType != websocket.TextMessage {
-			continue
-		}
+func NewWebSocketHandler(opts BackendOpts) (WebSocketHandler, error) {
+	var webSocketHandler WebSocketHandler
+	var err error
 
-		var request Request
-		err = json.Unmarshal(data, &request)
-		if err != nil {
-			log.Error("Unable to unmarshal request: ", err)
-			continue
-		}
-
-		err = writeErrorResponse(conn, request.Id, fmt.Errorf("Unsupported action: %s", request.Type))
-		if err != nil {
-			log.Error("Unable to write to a websocket: ", err)
-			return
-		}
-	}
+	webSocketHandler.db, err = NewDatabase(opts.DatabaseDirectory)
+	return webSocketHandler, err
 }
 
 func RunWebServer(opts *ReefOpts) {
 	ui := http.FileServer(Assets)
-	var webSocket WebSocket
-	var err error
-	webSocket.db, err = NewDatabase(opts.Backend.DatabaseDirectory)
+	webSocketHandler, err := NewWebSocketHandler(opts.Backend)
 	if err != nil {
 		log.Fatal("Unable to initialize the database: ", err)
 	}
 	http.Handle("/", ui)
-	http.Handle("/ws", webSocket)
+	http.Handle("/ws", webSocketHandler)
 
 	var wg sync.WaitGroup
 	wg.Add(len(opts.Web.BindAddresses))
