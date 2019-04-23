@@ -24,3 +24,16 @@ export function makeId(length) {
 export function capitalizeFirst(str) {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
+
+//------------------------------------------------------------------------------
+// Convert minues to hours
+//------------------------------------------------------------------------------
+export function minutesToHours(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  var str = hours.toString() + ':';
+  if(mins < 10) {
+    str += '0';
+  }
+  return str + mins.toString();
+}

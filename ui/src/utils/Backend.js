@@ -177,7 +177,7 @@ export class Backend {
             resolve(cleanData);
           }
           else
-            reject(new Error(data.message));
+            reject(new Error(data.payload));
 
           return Backend.REMOVE_LISTENER;
         }

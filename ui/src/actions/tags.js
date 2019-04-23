@@ -5,19 +5,27 @@
 // Licensed under the GPL 3 License, see the LICENSE file for details.
 //------------------------------------------------------------------------------
 
-import { backend } from './Backend';
+export const TAG_NEW = 'TAG_NEW';
+export const TAG_LIST_SET = 'TAG_LIST_SET';
+export const TAG_DELETE = 'TAG_DELETE';
 
-export function tagNew(name, color) {
-  return backend.sendMessage({
-    action: 'TAG_NEW',
-    name,
-    color
-  });
+export function tagNew(tag) {
+  return {
+    type: TAG_NEW,
+    tag
+  };
+}
+
+export function tagListSet(tagList) {
+  return {
+    type: TAG_LIST_SET,
+    tags: tagList
+  };
 }
 
 export function tagDelete(name) {
-  return backend.sendMessage({
-    action: 'TAG_DELETE',
+  return {
+    type: TAG_DELETE,
     name
-  });
+  };
 }

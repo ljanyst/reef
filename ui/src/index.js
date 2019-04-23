@@ -17,6 +17,7 @@ import './bootstrap-layout.css';
 import 'antd/dist/antd.css';
 
 import { backendReducer } from './reducers/backend';
+import { tagsReducer } from './reducers/tags';
 import {
   backendStatusSet, backendCountdownSet,
   BACKEND_CONNECTING, BACKEND_OPENED, BACKEND_CLOSED
@@ -31,7 +32,8 @@ import ReefApp from './components/ReefApp';
 //------------------------------------------------------------------------------
 export const store = createStore(
   combineReducers({
-    backend: backendReducer
+    backend: backendReducer,
+    tags: tagsReducer
   }),
   window.__REDUX_DEVTOOLS_EXTENSION__ && window.__REDUX_DEVTOOLS_EXTENSION__()
 );
