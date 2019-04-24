@@ -58,22 +58,30 @@ class TagList extends Component {
     }, {
       title: 'Action',
       align: 'right',
-      render: (_, record) => (
-        <Button.Group size="small">
-          <Button
-            icon='edit'
-            disabled={!this.props.connected}
-            onClick={() => {}} />
+      render: (_, record) => {
+        var deleteButton = (
           <Popconfirm
             placement="topRight"
             title={`Are you sure you want to delete '${record.tag.name}'`}
             onConfirm={() => this.onTagDelete(record.tag.name)}
             okText="Yes"
             cancelText="No">
-            <Button icon='delete' disabled={!this.props.connected}/>
-           </Popconfirm>
-        </Button.Group>
-      )
+            <Button icon='delete'/>
+          </Popconfirm>
+        );
+        if (!this.props.connected) {
+          deleteButton = (<Button icon='delete' disabled={true} />);
+        }
+        return (
+          <Button.Group size="small">
+            <Button
+              icon='edit'
+              disabled={!this.props.connected}
+              onClick={() => {}}/>
+            {deleteButton}
+          </Button.Group>
+        );
+      }
     }];
 
     return (
