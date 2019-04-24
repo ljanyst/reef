@@ -194,6 +194,10 @@ func (db *Database) DeleteTag(name string) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
+	if name == "Archived" {
+		return fmt.Errorf("Cannot delete 'Archived'")
+	}
+
 	_, err := db.db.Exec("DELETE FROM tags WHERE name=?;", name)
 	if err != nil {
 		return fmt.Errorf("Unable to delete tag: %s", err.Error())
