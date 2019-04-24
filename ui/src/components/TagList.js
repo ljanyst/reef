@@ -6,7 +6,7 @@
 //------------------------------------------------------------------------------
 
 import React, { Component } from 'react';
-import { Button, Icon, Tag, Table, message } from 'antd';
+import { Button, Icon, Tag, Table, Popconfirm, message } from 'antd';
 import { connect } from 'react-redux';
 import sortBy from 'sort-by';
 
@@ -64,10 +64,14 @@ class TagList extends Component {
             icon='edit'
             disabled={!this.props.connected}
             onClick={() => {}} />
-          <Button
-            icon='delete'
-            disabled={!this.props.connected}
-            onClick={() => this.onTagDelete(record.tag.name)} />
+          <Popconfirm
+            placement="topRight"
+            title={`Are you sure you want to delete '${record.tag.name}'`}
+            onConfirm={() => this.onTagDelete(record.tag.name)}
+            okText="Yes"
+            cancelText="No">
+            <Button icon='delete' disabled={!this.props.connected}/>
+           </Popconfirm>
         </Button.Group>
       )
     }];
