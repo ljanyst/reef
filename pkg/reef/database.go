@@ -39,6 +39,7 @@ type DatabaseEventListener interface {
 	OnTagNew(tag Tag)
 	OnTagDelete(name string)
 	OnTagList(tags []Tag)
+	OnTagEdit(oldName, newName, newColor string)
 }
 
 func (db *Database) readMetadata() (md map[string]string, err error) {
@@ -204,6 +205,28 @@ func (db *Database) DeleteTag(name string) error {
 	}
 
 	db.notifyListeners(func(listener DatabaseEventListener) { listener.OnTagDelete(name) })
+	return nil
+}
+
+func (db *Database) EditTag(oldName, newName, newColor string) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	if oldName == "Archived" {
+		return fmt.Errorf("Cannot edit 'Archived'")
+	}
+
+	_, err := db.db.Exec("UPDATE tags SET name=?, color=? WHERE name=?;", newName, newColor, oldName)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint") {
+			return fmt.Errorf("Unable to rename tag: %s already exists", newName)
+		}
+		return fmt.Errorf("Unable to edit tag: %s", err.Error())
+	}
+
+	db.notifyListeners(func(listener DatabaseEventListener) {
+		listener.OnTagEdit(oldName, newName, newColor)
+	})
 	return nil
 }
 

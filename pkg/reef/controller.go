@@ -94,6 +94,22 @@ func (c *Controller) createCallMap() {
 		}
 		return nil
 	}
+
+	c.callMap["TAG_EDIT"] = func(db *Database, req *Request) error {
+		err := checkActionParams(req.ActionParams, []string{"oldName", "newName", "newColor"})
+		if err != nil {
+			return err
+		}
+
+		oldName := req.ActionParams["oldName"]
+		newName := req.ActionParams["newName"]
+		newColor := req.ActionParams["newColor"]
+		if err := db.EditTag(oldName, newName, newColor); err != nil {
+			return err
+		}
+		return nil
+	}
+
 }
 
 func (c *Controller) writeErrorResponse(msgId string, err error) error {
@@ -138,6 +154,13 @@ func (c *Controller) OnTagDelete(name string) {
 func (c *Controller) OnTagList(tags []Tag) {
 	if err := c.writeBackendMessage("TAG_LIST", tags); err != nil {
 		log.Error("Unable to send TAG_LIST message:", err)
+	}
+}
+
+func (c *Controller) OnTagEdit(oldName, newName, newColor string) {
+	payload := map[string]string{"oldName": oldName, "newName": newName, "newColor": newColor}
+	if err := c.writeBackendMessage("TAG_EDIT", payload); err != nil {
+		log.Error("Unable to send TAG_EDIT message:", err)
 	}
 }
 
