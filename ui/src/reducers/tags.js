@@ -5,7 +5,7 @@
 // Licensed under the GPL 3 License, see the LICENSE file for details.
 //------------------------------------------------------------------------------
 
-import { TAG_NEW, TAG_LIST_SET, TAG_DELETE } from '../actions/tags';
+import { TAG_NEW, TAG_LIST_SET, TAG_DELETE, TAG_EDIT } from '../actions/tags';
 
 const tagsState = {};
 
@@ -29,6 +29,15 @@ export function tagsReducer(state = tagsState, action) {
 
   case TAG_DELETE:
     delete newState[action.name];
+    return newState;
+
+  case TAG_EDIT:
+    if (action.newName !== action.oldName) {
+      newState[action.newName] = newState[action.oldName];
+      delete newState[action.oldName];
+    }
+    newState[action.newName].name = action.newName;
+    newState[action.newName].color = action.newColor;
     return newState;
 
   default:

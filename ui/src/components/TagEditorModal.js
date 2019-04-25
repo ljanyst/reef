@@ -86,7 +86,7 @@ class TagEditorModal extends Component {
   //----------------------------------------------------------------------------
   // Modal manipulators
   //----------------------------------------------------------------------------
-  show = (color, name) => {
+  show = (name, color) => {
     var state = {
       visible: true
     };
@@ -98,6 +98,7 @@ class TagEditorModal extends Component {
     if (name) {
       state = {
         name,
+        oldName: name,
         ...state
       };
     }
@@ -106,7 +107,7 @@ class TagEditorModal extends Component {
 
   handleOk = (e) => {
     if (this.props.onSuccess) {
-      this.props.onSuccess(this.state.name, this.state.hex);
+      this.props.onSuccess(this.state.oldName, this.state.name, this.state.hex);
     }
     this.setState({
       visible: false

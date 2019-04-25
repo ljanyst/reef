@@ -12,16 +12,27 @@ import sortBy from 'sort-by';
 
 import { BACKEND_OPENED } from '../actions/backend';
 import TagEditorModal from './TagEditorModal';
-import { tagNew, tagDelete } from '../utils/backendActions';
+import { tagNew, tagDelete, tagEdit } from '../utils/backendActions';
 import { minutesToHours } from '../utils/helpers';
 
 class TagList extends Component {
-  showTagEdit = () => {
-    this.tagEditor.show();
+  showTagAdd = (name, color) => {
+    this.tagAdder.show(name, color);
   }
 
-  onTagAdd = (name, color) => {
+  showTagEdit = (name, color) => {
+    this.tagEditor.show(name, color);
+  }
+
+  onTagAdd = (oldName, name, color) => {
     tagNew(name, color)
+      .catch(error => {
+        setTimeout(() => message.error(error.message), 500);
+      });
+  }
+
+  onTagEdit = (oldName, name, color) => {
+    tagEdit(oldName, name, color)
       .catch(error => {
         setTimeout(() => message.error(error.message), 500);
       });
@@ -77,7 +88,7 @@ class TagList extends Component {
             <Button
               icon='edit'
               disabled={!this.props.connected}
-              onClick={() => {}}/>
+              onClick={() => this.showTagEdit(record.tag.name, record.tag.color)}/>
             {deleteButton}
           </Button.Group>
         );
@@ -87,15 +98,17 @@ class TagList extends Component {
     return (
       <div className='col-md-8 col-md-offset-2 app-container'>
         <TagEditorModal
-          ref={(el) => { this.tagEditor = el; }}
+          ref={(el) => { this.tagAdder = el; }}
           onSuccess={this.onTagAdd}
-          title='Add tag'
-          />
+          title='Add tag' />
+        <TagEditorModal
+          ref={(el) => { this.tagEditor = el; }}
+          onSuccess={this.onTagEdit} />
         <h2>Tags</h2>
         <div className='control-button-container'>
           <Button
             disabled={!this.props.connected}
-            onClick={this.showTagEdit}
+            onClick={() => this.showTagAdd(null, null)}
             size='small'>
             <Icon type='plus' /> Add tag
           </Button>

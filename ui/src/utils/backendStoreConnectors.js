@@ -7,28 +7,30 @@
 
 import { store } from '../';
 import { Backend } from './Backend';
-import { tagListSet, tagNew, tagDelete } from '../actions/tags';
+import { tagListSet, tagNew, tagDelete, tagEdit } from '../actions/tags';
+
+const actionMap = {
+  TAG_LIST: tagListSet,
+  TAG_NEW: tagNew,
+  TAG_DELETE: tagDelete,
+  TAG_EDIT: tagEdit
+};
 
 //------------------------------------------------------------------------------
-// Make backend events change the state of the stare
+// Make backend events change the state
 //------------------------------------------------------------------------------
 export const messageStoreEvent = (event, data) => {
-  if(event !== Backend.MSG_RECEIVED)
+  if(event !== Backend.MSG_RECEIVED) {
     return;
-  switch(data.type) {
-  case 'TAG_LIST':
-    store.dispatch(tagListSet(data.payload));
-    break;
+  }
 
-  case 'TAG_NEW':
-    store.dispatch(tagNew(data.payload));
-    break;
+  if (data.type === 'ACTION_EXECUTED') {
+    return;
+  }
 
-  case 'TAG_DELETE':
-    store.dispatch(tagDelete(data.payload));
-    break;
-
-  default:
-    break;
+  if (data.type in actionMap) {
+    store.dispatch(actionMap[data.type](data.payload));
+  } else {
+    console.log('Unknown message type:', data.type);
   }
 };

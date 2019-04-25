@@ -8,6 +8,7 @@
 export const TAG_NEW = 'TAG_NEW';
 export const TAG_LIST_SET = 'TAG_LIST_SET';
 export const TAG_DELETE = 'TAG_DELETE';
+export const TAG_EDIT = 'TAG_EDIT';
 
 export function tagNew(tag) {
   return {
@@ -27,5 +28,14 @@ export function tagDelete(name) {
   return {
     type: TAG_DELETE,
     name
+  };
+}
+
+export function tagEdit(payload) {
+  return {
+    type: TAG_EDIT,
+    oldName: payload.oldName,
+    newName: payload.newName,
+    newColor: payload.newColor
   };
 }

@@ -21,3 +21,12 @@ export function tagDelete(name) {
     name
   });
 }
+
+export function tagEdit(oldName, newName, newColor) {
+  return backend.sendMessage({
+    action: 'TAG_EDIT',
+    oldName,
+    newName,
+    newColor
+  });
+}
