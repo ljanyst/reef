@@ -86,6 +86,40 @@ func (db *Database) initializeNew() error {
 				"VALUES (0, \"Archived\", \"#adadad\");",
 			"Unable to create the archived tag",
 		},
+		{
+			"CREATE TABLE projects (" +
+				"id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+				"title STRING NOT NULL, " +
+				"description STRING NOT NULL);",
+			"Unable to create the projects table",
+		},
+		{
+			"CREATE TABLE projectTags (" +
+				"projectId INTEGER NOT NULL, " +
+				"tagId INTEGER NOT NULL, " +
+				"CONSTRAINT PK_Pair PRIMARY KEY (projectId, tagId)" +
+				"FOREIGN KEY(projectId) REFERENCES projects(id)," +
+				"FOREIGN KEY(tagId) REFERENCES tags(id));",
+			"Unable to create the project-tag table.",
+		},
+		{
+			"CREATE TABLE tasks (" +
+				"id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, " +
+				"projectId INTEGER NOT NULL, " +
+				"done BOOLEAN NOT NULL, " +
+				"description STRING NOT NULL," +
+				"FOREIGN KEY(projectId) REFERENCES projects(id));",
+			"Unable to create the tasks table",
+		},
+		{
+			"CREATE TABLE sessions (" +
+				"id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, " +
+				"projectId INTEGER NOT NULL, " +
+				"date DATE NOT NULL, " +
+				"length INTEGER NOT NULL," +
+				"FOREIGN KEY(projectId) REFERENCES projects(id));",
+			"Unable to create the sessions table",
+		},
 	}
 
 	for _, command := range initializationQueries {
