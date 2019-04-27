@@ -16,32 +16,23 @@ import (
 )
 
 type Request struct {
-	Id           string `json:"id"`
-	Type         string `json:"type"`
-	Action       string `json:"action"`
-	ActionParams map[string]string
+	Id              string        `json:"id"`
+	Type            string        `json:"type"`
+	Action          string        `json:"action"`
+	TagNewParams    TagNewParams  `json:"tagNewParams"`
+	TagDeleteParams uint64        `json:"tagDeleteParams"`
+	TagEditParams   TagEditParams `json:"tagEditParams"`
 }
 
-type request Request
+type TagNewParams struct {
+	Name  string `json:"name"`
+	Color string `json:"color"`
+}
 
-func (req *Request) UnmarshalJSON(bs []byte) (err error) {
-	r := request{}
-	if err = json.Unmarshal(bs, &r); err != nil {
-		return
-	}
-
-	*req = Request(r)
-	m := make(map[string]string)
-
-	if err = json.Unmarshal(bs, &m); err != nil {
-		return
-	}
-
-	delete(m, "id")
-	delete(m, "type")
-	delete(m, "action")
-	req.ActionParams = m
-	return nil
+type TagEditParams struct {
+	Id       uint64 `json:"id"`
+	NewName  string `json:"newName"`
+	NewColor string `json:"newColor"`
 }
 
 type ActionResponse struct {
@@ -62,54 +53,31 @@ type Controller struct {
 	callMap map[string]func(*Database, *Request) error
 }
 
-func checkActionParams(actionParams map[string]string, presentParams []string) error {
-	for _, param := range presentParams {
-		if _, ok := actionParams[param]; !ok {
-			return fmt.Errorf("Missing \"%s\" param.", param)
-		}
-	}
-	return nil
-}
-
 func (c *Controller) createCallMap() {
 	c.callMap = make(map[string]func(*Database, *Request) error)
 
 	c.callMap["TAG_NEW"] = func(db *Database, req *Request) error {
-		if err := checkActionParams(req.ActionParams, []string{"name", "color"}); err != nil {
-			return err
-		}
-		if err := db.CreateTag(req.ActionParams["name"], req.ActionParams["color"]); err != nil {
+		p := req.TagNewParams
+		if err := db.CreateTag(p.Name, p.Color); err != nil {
 			return err
 		}
 		return nil
 	}
 
 	c.callMap["TAG_DELETE"] = func(db *Database, req *Request) error {
-		if err := checkActionParams(req.ActionParams, []string{"name"}); err != nil {
-			return err
-		}
-
-		if err := db.DeleteTag(req.ActionParams["name"]); err != nil {
+		if err := db.DeleteTag(req.TagDeleteParams); err != nil {
 			return err
 		}
 		return nil
 	}
 
 	c.callMap["TAG_EDIT"] = func(db *Database, req *Request) error {
-		err := checkActionParams(req.ActionParams, []string{"oldName", "newName", "newColor"})
-		if err != nil {
-			return err
-		}
-
-		oldName := req.ActionParams["oldName"]
-		newName := req.ActionParams["newName"]
-		newColor := req.ActionParams["newColor"]
-		if err := db.EditTag(oldName, newName, newColor); err != nil {
+		p := req.TagEditParams
+		if err := db.EditTag(p.Id, p.NewName, p.NewColor); err != nil {
 			return err
 		}
 		return nil
 	}
-
 }
 
 func (c *Controller) writeErrorResponse(msgId string, err error) error {
@@ -145,8 +113,8 @@ func (c *Controller) OnTagNew(tag Tag) {
 	}
 }
 
-func (c *Controller) OnTagDelete(name string) {
-	if err := c.writeBackendMessage("TAG_DELETE", name); err != nil {
+func (c *Controller) OnTagDelete(id uint64) {
+	if err := c.writeBackendMessage("TAG_DELETE", id); err != nil {
 		log.Error("Unable to send TAG_DELETE message:", err)
 	}
 }
@@ -157,8 +125,8 @@ func (c *Controller) OnTagList(tags []Tag) {
 	}
 }
 
-func (c *Controller) OnTagEdit(oldName, newName, newColor string) {
-	payload := map[string]string{"oldName": oldName, "newName": newName, "newColor": newColor}
+func (c *Controller) OnTagEdit(id uint64, newName, newColor string) {
+	payload := map[string]interface{}{"id": id, "newName": newName, "newColor": newColor}
 	if err := c.writeBackendMessage("TAG_EDIT", payload); err != nil {
 		log.Error("Unable to send TAG_EDIT message:", err)
 	}

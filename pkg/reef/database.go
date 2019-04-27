@@ -37,9 +37,9 @@ type Database struct {
 
 type DatabaseEventListener interface {
 	OnTagNew(tag Tag)
-	OnTagDelete(name string)
+	OnTagDelete(id uint64)
 	OnTagList(tags []Tag)
-	OnTagEdit(oldName, newName, newColor string)
+	OnTagEdit(id uint64, newName, newColor string)
 }
 
 func (db *Database) readMetadata() (md map[string]string, err error) {
@@ -225,32 +225,32 @@ func (db *Database) CreateTag(name string, color string) error {
 	return nil
 }
 
-func (db *Database) DeleteTag(name string) error {
+func (db *Database) DeleteTag(id uint64) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
-	if name == "Archived" {
+	if id == 0 {
 		return fmt.Errorf("Cannot delete 'Archived'")
 	}
 
-	_, err := db.db.Exec("DELETE FROM tags WHERE name=?;", name)
+	_, err := db.db.Exec("DELETE FROM tags WHERE id=?;", id)
 	if err != nil {
 		return fmt.Errorf("Unable to delete tag: %s", err.Error())
 	}
 
-	db.notifyListeners(func(listener DatabaseEventListener) { listener.OnTagDelete(name) })
+	db.notifyListeners(func(listener DatabaseEventListener) { listener.OnTagDelete(id) })
 	return nil
 }
 
-func (db *Database) EditTag(oldName, newName, newColor string) error {
+func (db *Database) EditTag(id uint64, newName, newColor string) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
-	if oldName == "Archived" {
+	if id == 0 {
 		return fmt.Errorf("Cannot edit 'Archived'")
 	}
 
-	_, err := db.db.Exec("UPDATE tags SET name=?, color=? WHERE name=?;", newName, newColor, oldName)
+	_, err := db.db.Exec("UPDATE tags SET name=?, color=? WHERE id=?;", newName, newColor, id)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
 			return fmt.Errorf("Unable to rename tag: %s already exists", newName)
@@ -259,7 +259,7 @@ func (db *Database) EditTag(oldName, newName, newColor string) error {
 	}
 
 	db.notifyListeners(func(listener DatabaseEventListener) {
-		listener.OnTagEdit(oldName, newName, newColor)
+		listener.OnTagEdit(id, newName, newColor)
 	})
 	return nil
 }
