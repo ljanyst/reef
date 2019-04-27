@@ -10,23 +10,20 @@ import { backend } from './Backend';
 export function tagNew(name, color) {
   return backend.sendMessage({
     action: 'TAG_NEW',
-    name,
-    color
+    tagNewParams: {name,  color}
   });
 }
 
-export function tagDelete(name) {
+export function tagDelete(id) {
   return backend.sendMessage({
     action: 'TAG_DELETE',
-    name
+    tagDeleteParams: id
   });
 }
 
-export function tagEdit(oldName, newName, newColor) {
+export function tagEdit(id, newName, newColor) {
   return backend.sendMessage({
     action: 'TAG_EDIT',
-    oldName,
-    newName,
-    newColor
+    tagEditParams: {id, newName, newColor}
   });
 }

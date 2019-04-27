@@ -18,26 +18,22 @@ export function tagsReducer(state = tagsState, action) {
 
   case TAG_LIST_SET:
     let tags =  action.tags.reduce((acc, current) => {
-      acc[current.name] = current;
+      acc[current.id] = current;
       return acc;
     }, {});
     return tags;
 
   case TAG_NEW:
-    newState[action.tag.name] = action.tag;
+    newState[action.tag.id] = action.tag;
     return newState;
 
   case TAG_DELETE:
-    delete newState[action.name];
+    delete newState[action.id];
     return newState;
 
   case TAG_EDIT:
-    if (action.newName !== action.oldName) {
-      newState[action.newName] = newState[action.oldName];
-      delete newState[action.oldName];
-    }
-    newState[action.newName].name = action.newName;
-    newState[action.newName].color = action.newColor;
+    newState[action.id].name = action.newName;
+    newState[action.id].color = action.newColor;
     return newState;
 
   default:

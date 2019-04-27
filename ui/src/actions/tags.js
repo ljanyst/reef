@@ -24,17 +24,17 @@ export function tagListSet(tagList) {
   };
 }
 
-export function tagDelete(name) {
+export function tagDelete(id) {
   return {
     type: TAG_DELETE,
-    name
+    id
   };
 }
 
 export function tagEdit(payload) {
   return {
     type: TAG_EDIT,
-    oldName: payload.oldName,
+    id: payload.id,
     newName: payload.newName,
     newColor: payload.newColor
   };

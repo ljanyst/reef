@@ -16,30 +16,30 @@ import { tagNew, tagDelete, tagEdit } from '../utils/backendActions';
 import { minutesToHours } from '../utils/helpers';
 
 class TagList extends Component {
-  showTagAdd = (name, color) => {
-    this.tagAdder.show(name, color);
+  showTagAdd = (id, name, color) => {
+    this.tagAdder.show(id, name, color);
   }
 
-  showTagEdit = (name, color) => {
-    this.tagEditor.show(name, color);
+  showTagEdit = (id, name, color) => {
+    this.tagEditor.show(id, name, color);
   }
 
-  onTagAdd = (oldName, name, color) => {
+  onTagAdd = (id, name, color) => {
     tagNew(name, color)
       .catch(error => {
         setTimeout(() => message.error(error.message), 500);
       });
   }
 
-  onTagEdit = (oldName, name, color) => {
-    tagEdit(oldName, name, color)
+  onTagEdit = (id, name, color) => {
+    tagEdit(id, name, color)
       .catch(error => {
         setTimeout(() => message.error(error.message), 500);
       });
   }
 
-  onTagDelete = (name) => {
-    tagDelete(name)
+  onTagDelete = (id) => {
+    tagDelete(id)
       .catch(error => {
         setTimeout(() => message.error(error.message), 500);
       });
@@ -74,7 +74,7 @@ class TagList extends Component {
           <Popconfirm
             placement="topRight"
             title={`Are you sure you want to delete '${record.tag.name}'`}
-            onConfirm={() => this.onTagDelete(record.tag.name)}
+            onConfirm={() => this.onTagDelete(record.key)}
             okText="Yes"
             cancelText="No">
             <Button icon='delete'/>
@@ -88,7 +88,13 @@ class TagList extends Component {
             <Button
               icon='edit'
               disabled={!this.props.connected}
-              onClick={() => this.showTagEdit(record.tag.name, record.tag.color)}/>
+              onClick={
+                () => {
+                  this.showTagEdit(record.key,
+                                   record.tag.name,
+                                   record.tag.color);
+                }
+              }/>
             {deleteButton}
           </Button.Group>
         );
@@ -108,7 +114,7 @@ class TagList extends Component {
         <div className='control-button-container'>
           <Button
             disabled={!this.props.connected}
-            onClick={() => this.showTagAdd(null, null)}
+            onClick={() => this.showTagAdd(null, null, null)}
             size='small'>
             <Icon type='plus' /> Add tag
           </Button>
