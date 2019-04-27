@@ -29,6 +29,13 @@ type Tag struct {
 	NumberOfProjects uint32 `json:"numProjects"`
 }
 
+type Summary struct {
+	Id           uint64   `json:"id"`
+	Title        string   `json:"title"`
+	Tags         []uint64 `json:"tags"`
+	Completeness uint32   `json:"completeness"`
+}
+
 type Database struct {
 	db        *sql.DB
 	mutex     sync.Mutex
@@ -40,6 +47,8 @@ type DatabaseEventListener interface {
 	OnTagDelete(id uint64)
 	OnTagList(tags []Tag)
 	OnTagEdit(id uint64, newName, newColor string)
+	OnSummaryNew(summary Summary)
+	OnSummaryList(summaries []Summary)
 }
 
 func (db *Database) readMetadata() (md map[string]string, err error) {
@@ -89,7 +98,7 @@ func (db *Database) initializeNew() error {
 		{
 			"CREATE TABLE projects (" +
 				"id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-				"title STRING NOT NULL, " +
+				"title STRING UNIQUE NOT NULL, " +
 				"description STRING NOT NULL);",
 			"Unable to create the projects table",
 		},
@@ -156,11 +165,18 @@ func (db *Database) AddEventListener(listener DatabaseEventListener) {
 	defer db.mutex.Unlock()
 
 	db.listeners[listener] = true
+
 	tags, err := db.getTagList()
 	if err != nil {
 		log.Fatal("Eunable to get tags:", err)
 	}
 	listener.OnTagList(tags)
+
+	summaries, err := db.getSummaryList()
+	if err != nil {
+		log.Fatal("Eunable to get project summaries:", err)
+	}
+	listener.OnSummaryList(summaries)
 }
 
 func (db *Database) RemoveEventListener(listener DatabaseEventListener) {
@@ -185,6 +201,16 @@ func (db *Database) getTagByName(name string) (Tag, error) {
 	return tag, nil
 }
 
+func (db *Database) getSummaryByTitle(title string) (Summary, error) {
+	query := "SELECT id, title FROM projects WHERE title = ?;"
+	var summary Summary
+	if err := db.db.QueryRow(query, title).Scan(&summary.Id, &summary.Title); err != nil {
+		return Summary{}, err
+	}
+	summary.Tags = []uint64{}
+	return summary, nil
+}
+
 func (db *Database) getTagList() ([]Tag, error) {
 	var tags []Tag
 	rows, err := db.db.Query("SELECT id, name, color FROM tags;")
@@ -203,6 +229,26 @@ func (db *Database) getTagList() ([]Tag, error) {
 		return []Tag{}, err
 	}
 	return tags, nil
+}
+
+func (db *Database) getSummaryList() ([]Summary, error) {
+	var summaries []Summary
+	rows, err := db.db.Query("SELECT id, title FROM projects;")
+	if err != nil {
+		return []Summary{}, err
+	}
+	for rows.Next() {
+		var summary Summary
+		err := rows.Scan(&summary.Id, &summary.Title)
+		if err != nil {
+			return []Summary{}, err
+		}
+		summaries = append(summaries, summary)
+	}
+	if err := rows.Err(); err != nil {
+		return []Summary{}, err
+	}
+	return summaries, nil
 }
 
 func (db *Database) CreateTag(name string, color string) error {
@@ -260,6 +306,28 @@ func (db *Database) EditTag(id uint64, newName, newColor string) error {
 
 	db.notifyListeners(func(listener DatabaseEventListener) {
 		listener.OnTagEdit(id, newName, newColor)
+	})
+	return nil
+}
+
+func (db *Database) CreateProject(title string) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	_, err := db.db.Exec("INSERT INTO projects (title, description) VALUES (?, ?);", title, "")
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint") {
+			return fmt.Errorf("Unable to create project: %s already exists", title)
+		}
+		return fmt.Errorf("Unable to create project: %s", err.Error())
+	}
+
+	summary, err := db.getSummaryByTitle(title)
+	if err != nil {
+		return fmt.Errorf("Unable to query new project \"%s\": %s", title, err)
+	}
+	db.notifyListeners(func(listener DatabaseEventListener) {
+		listener.OnSummaryNew(summary)
 	})
 	return nil
 }

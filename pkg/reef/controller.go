@@ -16,12 +16,13 @@ import (
 )
 
 type Request struct {
-	Id              string        `json:"id"`
-	Type            string        `json:"type"`
-	Action          string        `json:"action"`
-	TagNewParams    TagNewParams  `json:"tagNewParams"`
-	TagDeleteParams uint64        `json:"tagDeleteParams"`
-	TagEditParams   TagEditParams `json:"tagEditParams"`
+	Id               string        `json:"id"`
+	Type             string        `json:"type"`
+	Action           string        `json:"action"`
+	TagNewParams     TagNewParams  `json:"tagNewParams"`
+	TagDeleteParams  uint64        `json:"tagDeleteParams"`
+	TagEditParams    TagEditParams `json:"tagEditParams"`
+	ProjectNewParams string        `json:"projectNewParams"`
 }
 
 type TagNewParams struct {
@@ -78,6 +79,13 @@ func (c *Controller) createCallMap() {
 		}
 		return nil
 	}
+
+	c.callMap["PROJECT_NEW"] = func(db *Database, req *Request) error {
+		if err := db.CreateProject(req.ProjectNewParams); err != nil {
+			return err
+		}
+		return nil
+	}
 }
 
 func (c *Controller) writeErrorResponse(msgId string, err error) error {
@@ -129,6 +137,18 @@ func (c *Controller) OnTagEdit(id uint64, newName, newColor string) {
 	payload := map[string]interface{}{"id": id, "newName": newName, "newColor": newColor}
 	if err := c.writeBackendMessage("TAG_EDIT", payload); err != nil {
 		log.Error("Unable to send TAG_EDIT message:", err)
+	}
+}
+
+func (c *Controller) OnSummaryNew(summary Summary) {
+	if err := c.writeBackendMessage("SUMMARY_NEW", summary); err != nil {
+		log.Error("Unable to send SUMMARY_NEW message:", err)
+	}
+}
+
+func (c *Controller) OnSummaryList(summaries []Summary) {
+	if err := c.writeBackendMessage("SUMMARY_LIST", summaries); err != nil {
+		log.Error("Unable to send SUMMARY_LIST message:", err)
 	}
 }
 
