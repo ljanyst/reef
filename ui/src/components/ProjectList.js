@@ -7,10 +7,14 @@
 
 import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
-import { Table, Card, Button, Icon, Tag } from 'antd';
+import { Table, Button, Icon, Tag, message } from 'antd';
+import { connect } from 'react-redux';
+import sortBy from 'sort-by';
 
+import { BACKEND_OPENED } from '../actions/backend';
 import TagPicker from './TagPicker';
 import ProjectAddModal from './ProjectAddModal';
+import { projectNew } from '../utils/backendActions';
 
 const styles = {
   progress: {
@@ -27,7 +31,10 @@ const styles = {
 
 class ProjectList extends Component {
   addProject = name => {
-    console.log(name);
+    projectNew(name)
+      .catch(error => {
+        setTimeout(() => message.error(error.message), 500);
+      });
   }
 
   showAddDialog = () => {
@@ -35,70 +42,34 @@ class ProjectList extends Component {
   }
 
   render() {
-    var list = (
-      <Card>
-        <div style={{textAlign: 'center'}}>No projects.</div>
-      </Card>
+    const columns = [{
+      dataIndex: 'key',
+      render: (_, record) => (
+        <div>
+          <Link to={`project/${record.key}`}>
+            {record.title}
+          </Link>
+          <div style={{float: 'right'}}>
+            {
+              record.tags.map(tag => (
+                <Tag color={tag.color} key={tag.name}>{tag.name}</Tag>
+              ))
+            }
+          <div style={styles.progress}>{Math.floor(record.progress*100)}%</div>
+          </div>
+        </div>
+      )
+    }];
+
+    const list = (
+      <Table
+        showHeader={false}
+        columns={columns}
+        dataSource={this.props.summaries}
+        size='small'
+        pagination={false}
+        />
     );
-
-    if (true) {
-      const columns = [{
-        dataIndex: 'key',
-        render: (_, record) => (
-          <div>
-              <Link to={`project/${record.key}`}>
-                {record.title}
-              </Link>
-              <div style={{float: 'right'}}>
-                {
-                  record.tags.map(tag => (
-                    <Tag color={tag.color} key={tag.name}>{tag.name}</Tag>
-                  ))
-                }
-                <div style={styles.progress}>{Math.floor(record.progress*100)}%</div>
-              </div>
-          </div>)
-      }];
-
-      const data =[{
-        key: 'asdf1',
-        title: 'Advanced Math - semester #1',
-        tags: [
-          {name: 'Purple', color: '#5243aa'},
-          {name: 'Orange', color: '#ff8b00'},
-          {name: 'Blue', color: '#0052cc'}
-        ],
-        progress: 0.92
-      }, {
-        key: 'asdf2',
-        title: 'Structure and interpretation of computer programs',
-        tags: [
-          {name: 'Blue', color: '#0052cc'},
-          {name: 'Orange', color: '#ff8b00'},
-          {name: 'Green', color: '#36b37e'},
-          {name: 'Ocean', color: '#00b8d9'}
-        ],
-        progress: 0.43
-      }, {
-        key: 'asdf3',
-        title: 'Multiple view geometry',
-        tags: [
-          {name: 'Yellow', color: '#ffc400'},
-          {name: 'Forest', color: '#00875a'},
-        ],
-        progress: 1.
-      }];
-
-      list = (
-        <Table
-          showHeader={false}
-          columns={columns}
-          dataSource={data}
-          size='small'
-          pagination={false}
-          />
-      );
-    }
 
     return (
       <div className='col-md-8 col-md-offset-2 app-container'>
@@ -109,7 +80,10 @@ class ProjectList extends Component {
           title='Add project'
           />
         <div className='control-button-container'>
-          <Button onClick={this.showAddDialog} size='small'>
+          <Button
+            onClick={this.showAddDialog}
+            disabled={!this.props.connected}
+            size='small'>
             <Icon type='plus' /> Add project
           </Button>
         </div>
@@ -122,4 +96,34 @@ class ProjectList extends Component {
   }
 }
 
-export default ProjectList;
+//------------------------------------------------------------------------------
+// The redux connection
+//------------------------------------------------------------------------------
+function mapStateToProps(state, ownProps) {
+  let summaries = Object.keys(state.summaries)
+      .map(key => state.summaries[key])
+      .sort(sortBy('title'))
+      .map(obj => {
+        return {
+          key: obj.id,
+          title: obj.title,
+          tags: [
+            {name: 'Purple', color: '#5243aa'},
+            {name: 'Orange', color: '#ff8b00'},
+            {name: 'Blue', color: '#0052cc'}
+          ],
+          progress: 0.92
+        };
+      });
+
+  return {
+    summaries,
+    connected: state.backend.status === BACKEND_OPENED
+  };
+}
+
+function mapDispatchToProps(dispatch) {
+  return {};
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(ProjectList);
