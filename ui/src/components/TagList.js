@@ -143,9 +143,9 @@ function mapStateToProps(state, ownProps) {
         return {
           key: obj.id,
           tag: {name: obj.name, color: obj.color},
-          hoursTotal: minutesToHours(obj.minutesTotal),
-          hoursYear: minutesToHours(obj.minutesYear),
-          hoursMonth: minutesToHours(obj.minutesMonth),
+          hoursTotal: minutesToHours(obj.durationTotal),
+          hoursYear: minutesToHours(obj.durationYear),
+          hoursMonth: minutesToHours(obj.durationMonth),
           numProjects: obj.numProjects
         };
       });
