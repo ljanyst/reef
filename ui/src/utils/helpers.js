@@ -26,7 +26,7 @@ export function capitalizeFirst(str) {
 }
 
 //------------------------------------------------------------------------------
-// Convert minues to hours
+// Convert minutes to hours
 //------------------------------------------------------------------------------
 export function minutesToHours(minutes) {
   const hours = Math.floor(minutes / 60);
@@ -36,4 +36,28 @@ export function minutesToHours(minutes) {
     str += '0';
   }
   return str + mins.toString();
+}
+
+//------------------------------------------------------------------------------
+// Convert minutes to a string
+//------------------------------------------------------------------------------
+export function minutesToString(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+
+  var str = '';
+  if (hours === 1) {
+    str += '1 hour, ';
+  } else if (hours !== 0) {
+    str += hours.toString() + ' hours, ';
+  }
+
+  if (hours === 0 || mins !== 0) {
+    if (minutes === 1) {
+      str += '1 minute';
+    } else {
+      str += mins.toString() + ' minutes';
+    }
+  }
+  return str;
 }

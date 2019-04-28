@@ -19,6 +19,7 @@ import 'antd/dist/antd.css';
 import { backendReducer } from './reducers/backend';
 import { tagsReducer } from './reducers/tags';
 import { summariesReducer } from './reducers/summaries';
+import { projectReducer } from './reducers/project';
 import {
   backendStatusSet, backendCountdownSet,
   BACKEND_CONNECTING, BACKEND_OPENED, BACKEND_CLOSED
@@ -35,7 +36,8 @@ export const store = createStore(
   combineReducers({
     backend: backendReducer,
     tags: tagsReducer,
-    summaries: summariesReducer
+    summaries: summariesReducer,
+    project: projectReducer
   }),
   window.__REDUX_DEVTOOLS_EXTENSION__ && window.__REDUX_DEVTOOLS_EXTENSION__()
 );

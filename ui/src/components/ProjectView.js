@@ -6,7 +6,14 @@
 //------------------------------------------------------------------------------
 
 import React, { Component } from 'react';
-import { Card, Button, Tag, Tooltip, Icon, Progress, Table } from 'antd';
+import { Card, Button, Tag, Tooltip, Icon, Progress, Table, Empty } from 'antd';
+import { connect } from 'react-redux';
+import { withRouter } from 'react-router';
+
+import { BACKEND_OPENED } from '../actions/backend';
+import { projectGet } from '../utils/backendActions';
+import { projectSet } from '../actions/project';
+import { minutesToString } from '../utils/helpers';
 
 const styles = {
   text: {
@@ -47,17 +54,79 @@ const styles = {
 };
 
 class ProjectView extends Component {
+  //----------------------------------------------------------------------------
+  // The state
+  //----------------------------------------------------------------------------
+  state = {
+    fetchError: null
+  }
+
+  //----------------------------------------------------------------------------
+  // Helpers
+  //----------------------------------------------------------------------------
+  fetchData = () =>
+    projectGet(this.props.match.params.id)
+    .then(data => {
+      this.setState({ fetchError: null });
+      this.props.projectSet(data.payload);
+    })
+    .catch(error => this.setState({ fetchError: error.message }));
+
+  //----------------------------------------------------------------------------
+  // Mount the component
+  //----------------------------------------------------------------------------
+  componentDidMount() {
+    this.setState({connected: this.props.connected});
+
+    // We must wait for the backend web socket to connect
+    if (this.props.connected) {
+      this.fetchData();
+    } else {
+      setTimeout(this.fetchData, 1000);
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Renderer
+  //----------------------------------------------------------------------------
   render() {
+    //--------------------------------------------------------------------------
+    // No data for this project
+    //--------------------------------------------------------------------------
+    if (Number(this.props.match.params.id) !== this.props.id) {
+      var msg = "Loading the project data...";
+      if (this.state.fetchError !== null) {
+        msg = `Unable to fetch the project data: ${this.state.fetchError}`;
+      }
+
+      if (this.state.fetchError === 'Backend not connected.' &&
+          this.props.connected) {
+        this.fetchData();
+      }
+
+      return (
+        <div className='col-md-6 col-md-offset-3 app-container'>
+          <Card>
+            <Empty description={msg} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          </Card>
+        </div>
+      );
+    }
+
     const timeTooltip = (
       <table>
         <tbody>
           <tr>
             <td style={styles.tooltipTableLabel}>This month:</td>
-            <td style={styles.tooltipTableValue}>432 hours 41 minutes</td>
+            <td style={styles.tooltipTableValue}>
+              {minutesToString(this.props.durationMonth)}
+            </td>
           </tr>
           <tr>
             <td style={styles.tooltipTableLabel}>This week:</td>
-            <td style={styles.tooltipTableValue}>12 hours 11 minutes</td>
+            <td style={styles.tooltipTableValue}>
+              {minutesToString(this.props.durationWeek)}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -65,11 +134,11 @@ class ProjectView extends Component {
 
     const title = (
       <div>
-        Advanced Math #1
+        {this.props.title}
         <div style={{float: 'right'}}>
           <Button.Group size="small">
-            <Button icon='edit' />
-            <Button icon='delete' />
+            <Button icon='edit' disabled={!this.props.connected} />
+            <Button icon='delete' disabled={!this.props.connected} />
           </Button.Group>
         </div>
       </div>
@@ -82,9 +151,9 @@ class ProjectView extends Component {
           {record.description}
           <div style={{float: 'right'}}>
             <Button.Group size="small">
-              <Button icon='check-circle' />
-              <Button icon='edit' />
-              <Button icon='delete' />
+              <Button icon='check-circle' disabled={!this.props.connected} />
+              <Button icon='edit' disabled={!this.props.connected} />
+              <Button icon='delete' disabled={!this.props.connected} />
             </Button.Group>
           </div>
         </div>)
@@ -112,7 +181,7 @@ class ProjectView extends Component {
             {record.data}.
             <div style={{float: 'right'}}>
               <Button.Group size="small">
-                <Button icon='delete' />
+                <Button icon='delete' disabled={!this.props.connected} />
               </Button.Group>
             </div>
           </div>
@@ -137,7 +206,7 @@ class ProjectView extends Component {
             <div style={{marginBottom: '1.5em', color: 'Gray'}}>
               <Tooltip placement="right" title={timeTooltip}>
                 <div style={{display: 'inline-block'}}>
-                  Time spent: <b>3212 hours 23 minues</b>
+                  Time spent: <b>{minutesToString(this.props.durationTotal)}</b>
                 </div>
               </Tooltip>
               <div style={{float: 'right'}}>
@@ -147,6 +216,7 @@ class ProjectView extends Component {
               </div>
             </div>
             <div>
+              {this.props.description}
             Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus
             ac metus condimentum, venenatis lorem vel, blandit erat. Maecenas
             turpis justo, pulvinar at ipsum ut, aliquam finibus libero.
@@ -197,4 +267,29 @@ class ProjectView extends Component {
   }
 }
 
-export default ProjectView;
+//------------------------------------------------------------------------------
+// The redux connection
+//------------------------------------------------------------------------------
+function mapStateToProps(state, ownProps) {
+  const id = Number(ownProps.match.params.id);
+  var mapped = {
+    connected: state.backend.status === BACKEND_OPENED
+  };
+
+  if (id === state.project.id) {
+    const st = {
+      ...mapped,
+      ...state.project
+    };
+    return st;
+  }
+  return mapped;
+}
+
+function mapDispatchToProps(dispatch) {
+  return {
+    projectSet: (project) => dispatch(projectSet(project))
+  };
+}
+
+export default withRouter(connect(mapStateToProps, mapDispatchToProps)(ProjectView));

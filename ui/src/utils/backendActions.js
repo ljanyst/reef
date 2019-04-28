@@ -30,7 +30,14 @@ export function tagEdit(id, newName, newColor) {
 
 export function projectNew(name) {
   return backend.sendMessage({
-    action: "PROJECT_NEW",
+    action: 'PROJECT_NEW',
     projectNewParams: name
+  });
+}
+
+export function projectGet(id) {
+  return backend.sendMessage({
+    action: 'PROJECT_GET',
+    projectGetParams: Number(id)
   });
 }
