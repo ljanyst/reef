@@ -6,6 +6,7 @@
 //------------------------------------------------------------------------------
 
 import { SUMMARY_LIST_SET, SUMMARY_NEW } from '../actions/summaries';
+import { PROJECT_DELETE } from '../actions/project';
 
 const summariesState = {};
 
@@ -25,6 +26,10 @@ export function summariesReducer(state = summariesState, action) {
 
   case SUMMARY_NEW:
     newState[action.summary.id] = action.summary;
+    return newState;
+
+  case PROJECT_DELETE:
+    delete newState[action.id];
     return newState;
 
   default:

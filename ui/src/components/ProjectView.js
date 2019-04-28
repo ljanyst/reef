@@ -6,12 +6,14 @@
 //------------------------------------------------------------------------------
 
 import React, { Component } from 'react';
-import { Card, Button, Tag, Tooltip, Icon, Progress, Table, Empty } from 'antd';
+import {
+  Card, Button, Tag, Tooltip, Icon, Progress, Table, Empty, Popconfirm, message
+} from 'antd';
 import { connect } from 'react-redux';
 import { withRouter } from 'react-router';
 
 import { BACKEND_OPENED } from '../actions/backend';
-import { projectGet } from '../utils/backendActions';
+import { projectGet, projectDelete } from '../utils/backendActions';
 import { projectSet } from '../actions/project';
 import { minutesToString } from '../utils/helpers';
 
@@ -65,12 +67,18 @@ class ProjectView extends Component {
   // Helpers
   //----------------------------------------------------------------------------
   fetchData = () =>
-    projectGet(this.props.match.params.id)
+    projectGet(Number(this.props.match.params.id))
     .then(data => {
       this.setState({ fetchError: null });
       this.props.projectSet(data.payload);
     })
     .catch(error => this.setState({ fetchError: error.message }));
+
+  deletePost = () => {
+    projectDelete(Number(this.props.match.params.id))
+      .then(data => this.props.history.push('/projects'))
+      .catch(error => message.error(error.message));
+  }
 
   //----------------------------------------------------------------------------
   // Mount the component
@@ -91,17 +99,20 @@ class ProjectView extends Component {
   //----------------------------------------------------------------------------
   render() {
     //--------------------------------------------------------------------------
+    // Re-fetch the data on reconnection
+    //--------------------------------------------------------------------------
+    if (this.state.fetchError === 'Backend not connected.' &&
+        this.props.connected) {
+      this.fetchData();
+    }
+
+    //--------------------------------------------------------------------------
     // No data for this project
     //--------------------------------------------------------------------------
     if (Number(this.props.match.params.id) !== this.props.id) {
       var msg = "Loading the project data...";
       if (this.state.fetchError !== null) {
         msg = `Unable to fetch the project data: ${this.state.fetchError}`;
-      }
-
-      if (this.state.fetchError === 'Backend not connected.' &&
-          this.props.connected) {
-        this.fetchData();
       }
 
       return (
@@ -113,6 +124,9 @@ class ProjectView extends Component {
       );
     }
 
+    //--------------------------------------------------------------------------
+    // Tooltip
+    //--------------------------------------------------------------------------
     const timeTooltip = (
       <table>
         <tbody>
@@ -132,18 +146,41 @@ class ProjectView extends Component {
       </table>
     );
 
+    //--------------------------------------------------------------------------
+    // Delete button
+    //--------------------------------------------------------------------------
+    var deleteButton = (
+      <Popconfirm
+        placement="topRight"
+        title={`Are you sure you want to delete '${this.props.title}'`}
+        onConfirm={() => this.deletePost()}
+        okText="Yes"
+        cancelText="No">
+        <Button icon='delete'/>
+      </Popconfirm>
+    );
+    if (!this.props.connected) {
+      deleteButton = (<Button icon='delete' disabled={true} />);
+    }
+
+    //--------------------------------------------------------------------------
+    // Title
+    //--------------------------------------------------------------------------
     const title = (
       <div>
         {this.props.title}
         <div style={{float: 'right'}}>
           <Button.Group size="small">
             <Button icon='edit' disabled={!this.props.connected} />
-            <Button icon='delete' disabled={!this.props.connected} />
+            {deleteButton}
           </Button.Group>
         </div>
       </div>
     );
 
+    //--------------------------------------------------------------------------
+    // Task columns
+    //--------------------------------------------------------------------------
     const taskColumns = [{
       dataIndex: 'key',
       render: (_, record) => (

@@ -9,6 +9,7 @@ import { store } from '../';
 import { Backend } from './Backend';
 import { tagListSet, tagNew, tagDelete, tagEdit } from '../actions/tags';
 import { summaryListSet, summaryNew } from '../actions/summaries';
+import { projectDelete } from '../actions/project';
 
 const actionMap = {
   TAG_LIST: tagListSet,
@@ -16,7 +17,8 @@ const actionMap = {
   TAG_DELETE: tagDelete,
   TAG_EDIT: tagEdit,
   SUMMARY_LIST: summaryListSet,
-  SUMMARY_NEW: summaryNew
+  SUMMARY_NEW: summaryNew,
+  PROJECT_DELETE: projectDelete
 };
 
 //------------------------------------------------------------------------------

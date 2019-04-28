@@ -6,10 +6,18 @@
 //------------------------------------------------------------------------------
 
 export const PROJECT_SET = 'PROJECT_SET';
+export const PROJECT_DELETE = 'PROJECT_DELETE';
 
 export function projectSet(project) {
   return {
     type: PROJECT_SET,
     project
+  };
+}
+
+export function projectDelete(id) {
+  return {
+    type: PROJECT_DELETE,
+    id
   };
 }

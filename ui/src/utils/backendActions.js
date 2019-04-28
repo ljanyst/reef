@@ -38,6 +38,13 @@ export function projectNew(name) {
 export function projectGet(id) {
   return backend.sendMessage({
     action: 'PROJECT_GET',
-    projectGetParams: Number(id)
+    projectGetParams: id
+  });
+}
+
+export function projectDelete(id) {
+  return backend.sendMessage({
+    action: 'PROJECT_DELETE',
+    projectDeleteParams: id
   });
 }
