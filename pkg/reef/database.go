@@ -74,6 +74,7 @@ type DatabaseEventListener interface {
 	OnTagEdit(id uint64, newName, newColor string)
 	OnSummaryNew(summary Summary)
 	OnSummaryList(summaries []Summary)
+	OnProjectDelete(id uint64)
 }
 
 func (db *Database) readMetadata() (md map[string]string, err error) {
@@ -369,6 +370,19 @@ func (db *Database) GetProject(id uint64, callback func(project Project)) error 
 	}
 
 	callback(project)
+	return nil
+}
+
+func (db *Database) DeleteProject(id uint64) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	_, err := db.db.Exec("DELETE FROM projects WHERE id=?;", id)
+	if err != nil {
+		return fmt.Errorf("Unable to delete project: %s", err.Error())
+	}
+
+	db.notifyListeners(func(listener DatabaseEventListener) { listener.OnProjectDelete(id) })
 	return nil
 }
 

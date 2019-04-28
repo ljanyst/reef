@@ -16,14 +16,15 @@ import (
 )
 
 type Request struct {
-	Id               string        `json:"id"`
-	Type             string        `json:"type"`
-	Action           string        `json:"action"`
-	TagNewParams     TagNewParams  `json:"tagNewParams"`
-	TagDeleteParams  uint64        `json:"tagDeleteParams"`
-	TagEditParams    TagEditParams `json:"tagEditParams"`
-	ProjectNewParams string        `json:"projectNewParams"`
-	ProjectGetParams uint64        `json:"projectGetParams"`
+	Id                  string        `json:"id"`
+	Type                string        `json:"type"`
+	Action              string        `json:"action"`
+	TagNewParams        TagNewParams  `json:"tagNewParams"`
+	TagDeleteParams     uint64        `json:"tagDeleteParams"`
+	TagEditParams       TagEditParams `json:"tagEditParams"`
+	ProjectNewParams    string        `json:"projectNewParams"`
+	ProjectGetParams    uint64        `json:"projectGetParams"`
+	ProjectDeleteParams uint64        `json:"projectDeleteParams"`
 }
 
 type TagNewParams struct {
@@ -79,10 +80,15 @@ func (c *Controller) createCallMap() {
 	c.callMap["PROJECT_GET"] = func(db *Database, req *Request) (bool, error) {
 		return false, db.GetProject(req.ProjectGetParams, func(project Project) {
 			if err := c.writeResponse(req.Id, project); err != nil {
-				log.Error("Unable to send SUMMARY_LIST message:", err)
+				log.Error("Unable to send response to PROJECT_GET:", err)
 			}
 		})
 	}
+
+	c.callMap["PROJECT_DELETE"] = func(db *Database, req *Request) (bool, error) {
+		return true, db.DeleteProject(req.ProjectDeleteParams)
+	}
+
 }
 
 func (c *Controller) writeErrorResponse(msgId string, err error) error {
@@ -146,6 +152,12 @@ func (c *Controller) OnSummaryNew(summary Summary) {
 func (c *Controller) OnSummaryList(summaries []Summary) {
 	if err := c.writeBackendMessage("SUMMARY_LIST", summaries); err != nil {
 		log.Error("Unable to send SUMMARY_LIST message:", err)
+	}
+}
+
+func (c *Controller) OnProjectDelete(id uint64) {
+	if err := c.writeBackendMessage("PROJECT_DELETE", id); err != nil {
+		log.Error("Unable to send PROJECT_DELETE message:", err)
 	}
 }
 
