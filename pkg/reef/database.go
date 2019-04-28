@@ -23,9 +23,9 @@ type Tag struct {
 	Id               uint64 `json:"id"`
 	Name             string `json:"name"`
 	Color            string `json:"color"`
-	MinutesTotal     uint32 `json:"minutesTotal"`
-	MinutesYear      uint32 `json:"minutesYear"`
-	MinutesMonth     uint32 `json:"minutesMonth"`
+	DurationTotal    uint32 `json:"durationTotal"`
+	DurationYear     uint32 `json:"durationYear"`
+	DurationMonth    uint32 `json:"durationMonth"`
 	NumberOfProjects uint32 `json:"numProjects"`
 }
 
