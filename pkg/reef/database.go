@@ -33,7 +33,32 @@ type Summary struct {
 	Id           uint64   `json:"id"`
 	Title        string   `json:"title"`
 	Tags         []uint64 `json:"tags"`
-	Completeness uint32   `json:"completeness"`
+	Completeness float32  `json:"completeness"`
+}
+
+type Task struct {
+	Id    uint64 `json:"id"`
+	Title string `json:"title"`
+	Done  bool   `json:"done"`
+}
+
+type Session struct {
+	Id       uint64 `json:"id"`
+	Duration uint32 `json:"duration"`
+	Date     string `json:"date"`
+}
+
+type Project struct {
+	Id            uint64    `json:"id"`
+	Title         string    `json:"title"`
+	Description   string    `json:"description"`
+	Tags          []uint64  `json:"tags"`
+	DurationTotal uint32    `json:"durationTotal"`
+	DurationMonth uint32    `json:"durationMonth"`
+	DurationWeek  uint32    `json:"durationWeek"`
+	Completeness  float32   `json:"completeness"`
+	Tasks         []Task    `json:"tasks"`
+	Sessions      []Session `json:"sessions"`
 }
 
 type Database struct {
@@ -329,6 +354,21 @@ func (db *Database) CreateProject(title string) error {
 	db.notifyListeners(func(listener DatabaseEventListener) {
 		listener.OnSummaryNew(summary)
 	})
+	return nil
+}
+
+func (db *Database) GetProject(id uint64, callback func(project Project)) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	query := "SELECT id, title, description FROM projects WHERE id = ?;"
+	var project Project
+	err := db.db.QueryRow(query, id).Scan(&project.Id, &project.Title, &project.Description)
+	if err != nil {
+		return err
+	}
+
+	callback(project)
 	return nil
 }
 

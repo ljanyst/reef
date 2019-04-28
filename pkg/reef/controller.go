@@ -23,6 +23,7 @@ type Request struct {
 	TagDeleteParams  uint64        `json:"tagDeleteParams"`
 	TagEditParams    TagEditParams `json:"tagEditParams"`
 	ProjectNewParams string        `json:"projectNewParams"`
+	ProjectGetParams uint64        `json:"projectGetParams"`
 }
 
 type TagNewParams struct {
@@ -51,40 +52,36 @@ type BackendMessage struct {
 type Controller struct {
 	db      *Database
 	conn    *websocket.Conn
-	callMap map[string]func(*Database, *Request) error
+	callMap map[string]func(*Database, *Request) (bool, error)
 }
 
 func (c *Controller) createCallMap() {
-	c.callMap = make(map[string]func(*Database, *Request) error)
+	c.callMap = make(map[string]func(*Database, *Request) (bool, error))
 
-	c.callMap["TAG_NEW"] = func(db *Database, req *Request) error {
+	c.callMap["TAG_NEW"] = func(db *Database, req *Request) (bool, error) {
 		p := req.TagNewParams
-		if err := db.CreateTag(p.Name, p.Color); err != nil {
-			return err
-		}
-		return nil
+		return true, db.CreateTag(p.Name, p.Color)
 	}
 
-	c.callMap["TAG_DELETE"] = func(db *Database, req *Request) error {
-		if err := db.DeleteTag(req.TagDeleteParams); err != nil {
-			return err
-		}
-		return nil
+	c.callMap["TAG_DELETE"] = func(db *Database, req *Request) (bool, error) {
+		return true, db.DeleteTag(req.TagDeleteParams)
 	}
 
-	c.callMap["TAG_EDIT"] = func(db *Database, req *Request) error {
+	c.callMap["TAG_EDIT"] = func(db *Database, req *Request) (bool, error) {
 		p := req.TagEditParams
-		if err := db.EditTag(p.Id, p.NewName, p.NewColor); err != nil {
-			return err
-		}
-		return nil
+		return true, db.EditTag(p.Id, p.NewName, p.NewColor)
 	}
 
-	c.callMap["PROJECT_NEW"] = func(db *Database, req *Request) error {
-		if err := db.CreateProject(req.ProjectNewParams); err != nil {
-			return err
-		}
-		return nil
+	c.callMap["PROJECT_NEW"] = func(db *Database, req *Request) (bool, error) {
+		return true, db.CreateProject(req.ProjectNewParams)
+	}
+
+	c.callMap["PROJECT_GET"] = func(db *Database, req *Request) (bool, error) {
+		return false, db.GetProject(req.ProjectGetParams, func(project Project) {
+			if err := c.writeResponse(req.Id, project); err != nil {
+				log.Error("Unable to send SUMMARY_LIST message:", err)
+			}
+		})
 	}
 }
 
@@ -97,7 +94,7 @@ func (c *Controller) writeErrorResponse(msgId string, err error) error {
 	return c.conn.WriteMessage(websocket.TextMessage, data)
 }
 
-func (c *Controller) writeResposne(msgId string, payload interface{}) error {
+func (c *Controller) writeResponse(msgId string, payload interface{}) error {
 	resp := ActionResponse{msgId, "ACTION_EXECUTED", "OK", payload}
 	data, err := json.Marshal(resp)
 	if err != nil {
@@ -181,13 +178,17 @@ func (c *Controller) HandleConnection() {
 				return
 			}
 		} else {
-			err = f(c.db, &request)
+			ackSuccess, err := f(c.db, &request)
+			var innerErr error
+			innerErr = nil
 			if err != nil {
-				err = c.writeErrorResponse(request.Id, err)
-				if err != nil {
-					log.Error("Unable to write to a websocket: ", err)
-					return
-				}
+				innerErr = c.writeErrorResponse(request.Id, err)
+			} else if ackSuccess {
+				innerErr = c.writeResponse(request.Id, nil)
+			}
+			if innerErr != nil {
+				log.Error("Unable to write to a websocket: ", innerErr)
+				return
 			}
 		}
 	}
