@@ -368,6 +368,9 @@ func (db *Database) GetProject(id uint64, callback func(project Project)) error 
 	if err != nil {
 		return err
 	}
+	project.Tags = []uint64{}
+	project.Tasks = []Task{}
+	project.Sessions = []Session{}
 
 	callback(project)
 	return nil
