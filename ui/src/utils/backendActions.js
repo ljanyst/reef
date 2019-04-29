@@ -48,3 +48,10 @@ export function projectDelete(id) {
     projectDeleteParams: id
   });
 }
+
+export function projectEdit(id, title, description, tags) {
+  return backend.sendMessage({
+    action: 'PROJECT_EDIT',
+    projectEditParams: {id, title, description, tags}
+  });
+}

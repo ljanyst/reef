@@ -7,24 +7,28 @@
 
 import React, { Component } from 'react';
 import { Select } from 'antd';
+import { connect } from 'react-redux';
+import sortBy from 'sort-by';
+import PropTypes from 'prop-types';
 
 class TagPicker extends Component {
+  static propTypes = {
+    value: PropTypes.arrayOf(PropTypes.number),
+    onChange: PropTypes.func
+  }
+
+  constructor(props) {
+    console.log(props.value);
+    super();
+    this.state = {
+      selectedTags: props.value
+    };
+  }
+
   render() {
-    const tags = [
-      { name: 'Ocean', color: '#00B8D9' },
-      { name: 'Blue', color: '#0052CC '},
-      { name: 'Purple', color: '#5243AA' },
-      { name: 'Red', color: '#FF5630' },
-      { name: 'Orange', color: '#FF8B00' },
-      { name: 'Yellow', color: '#FFC400' },
-      { name: 'Green', color: '#36B37E' },
-      { name: 'Forest', color: '#00875A' },
-      { name: 'Slate', color: '#253858' },
-      { name: 'Silver', color: '#666666' },
-    ];
-    const options = tags.map(
+    const options = this.props.tags.map(
       tag =>
-        <Select.Option key={tag.name} value={tag.name} title={tag.name}>
+        <Select.Option key={tag.key} value={tag.key} title={tag.name}>
         <span style={{color: tag.color}}>{tag.name}</span>
         </Select.Option>
     );
@@ -35,7 +39,9 @@ class TagPicker extends Component {
           mode="multiple"
           style={{ width: '100%' }}
           placeholder="Select tags..."
-          >
+          value={this.props.value}
+          onChange={(event) => this.props.onChange(event)}
+        >
           {options}
         </Select>
       </div>
@@ -43,4 +49,28 @@ class TagPicker extends Component {
   }
 }
 
-export default TagPicker;
+//------------------------------------------------------------------------------
+// The redux connection
+//------------------------------------------------------------------------------
+function mapStateToProps(state, ownProps) {
+  let tags = Object.keys(state.tags)
+      .map(key => state.tags[key])
+      .sort(sortBy('name'))
+      .map(obj => {
+        return {
+          key: obj.id,
+          name: obj.name,
+          color: obj.color
+        };
+      });
+
+  return {
+    tags
+  };
+}
+
+function mapDispatchToProps(dispatch) {
+  return {};
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(TagPicker);

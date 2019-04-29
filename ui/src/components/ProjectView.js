@@ -7,15 +7,21 @@
 
 import React, { Component } from 'react';
 import {
-  Card, Button, Tag, Tooltip, Icon, Progress, Table, Empty, Popconfirm, message
+  Card, Button, Tag, Tooltip, Icon, Progress, Table, Empty, Popconfirm, message,
+  Input
 } from 'antd';
 import { connect } from 'react-redux';
 import { withRouter } from 'react-router';
 
+import TagPicker from './TagPicker';
 import { BACKEND_OPENED } from '../actions/backend';
-import { projectGet, projectDelete } from '../utils/backendActions';
+import {
+  projectGet, projectDelete, projectEdit
+} from '../utils/backendActions';
 import { projectSet } from '../actions/project';
 import { minutesToString } from '../utils/helpers';
+
+const { TextArea } = Input;
 
 const styles = {
   text: {
@@ -52,6 +58,10 @@ const styles = {
   infoPanel: {
     color: 'Gray',
     marginBottom: '1.5em'
+  },
+  titleEdit: {
+    width: '80%',
+    display: 'inline-block'
   }
 };
 
@@ -60,7 +70,8 @@ class ProjectView extends Component {
   // The state
   //----------------------------------------------------------------------------
   state = {
-    fetchError: null
+    fetchError: null,
+    edit: false
   }
 
   //----------------------------------------------------------------------------
@@ -125,6 +136,86 @@ class ProjectView extends Component {
     }
 
     //--------------------------------------------------------------------------
+    // Title
+    //--------------------------------------------------------------------------
+    var title = this.props.title;
+    if (this.state.edit) {
+      title = (
+        <div style={styles.titleEdit} >
+          <Input
+            size="small"
+            value={this.state.title}
+            onChange={(event) => this.setState({title: event.target.value})}
+          />
+        </div>
+      );
+    }
+
+    //--------------------------------------------------------------------------
+    // Title buttons
+    //--------------------------------------------------------------------------
+    var deleteButton = (
+      <Popconfirm
+        placement="topRight"
+        title={`Are you sure you want to delete '${this.props.title}'`}
+        onConfirm={() => this.deletePost()}
+        okText="Yes"
+        cancelText="No">
+        <Button icon='delete'/>
+      </Popconfirm>
+    );
+
+    if (!this.props.connected) {
+      deleteButton = (<Button icon='delete' disabled={true} />);
+    }
+
+    var titleButtons = (
+      <Button.Group size="small">
+        <Button
+          icon='edit'
+          disabled={!this.props.connected}
+          onClick = {() => this.setState({
+            edit: true,
+            title: this.props.title,
+            selectedTags: this.props.tags,
+            description: this.props.description
+          })}
+        />
+        {deleteButton}
+      </Button.Group>
+    );
+
+    if (this.state.edit) {
+      titleButtons = (
+        <Button.Group size="small">
+          <Button
+            icon='save'
+            disabled={!this.props.connected}
+            onClick = {() => {
+              projectEdit(this.props.id, this.state.title,
+                          this.state.description, this.state.selectedTags)
+                .catch(error => message.error(error.message));;
+              this.setState({edit: false});
+            }}>
+            Save
+            </Button>
+        </Button.Group>
+      );
+    }
+
+    //--------------------------------------------------------------------------
+    // Card title
+    //--------------------------------------------------------------------------
+    const cardTitle = (
+      <div>
+        {title}
+        <div style={{float: 'right'}}>
+          {titleButtons}
+        </div>
+      </div>
+    );
+
+    //--------------------------------------------------------------------------
     // Tooltip
     //--------------------------------------------------------------------------
     const timeTooltip = (
@@ -147,36 +238,46 @@ class ProjectView extends Component {
     );
 
     //--------------------------------------------------------------------------
-    // Delete button
+    // Info line
     //--------------------------------------------------------------------------
-    var deleteButton = (
-      <Popconfirm
-        placement="topRight"
-        title={`Are you sure you want to delete '${this.props.title}'`}
-        onConfirm={() => this.deletePost()}
-        okText="Yes"
-        cancelText="No">
-        <Button icon='delete'/>
-      </Popconfirm>
-    );
-    if (!this.props.connected) {
-      deleteButton = (<Button icon='delete' disabled={true} />);
-    }
-
-    //--------------------------------------------------------------------------
-    // Title
-    //--------------------------------------------------------------------------
-    const title = (
-      <div>
-        {this.props.title}
+    var infoLine = (
+      <div style={{marginBottom: '1.5em', color: 'Gray'}}>
+        <Tooltip placement="right" title={timeTooltip}>
+          <div style={{display: 'inline-block'}}>
+            Time spent: <b>{minutesToString(this.props.durationTotal)}</b>
+          </div>
+        </Tooltip>
         <div style={{float: 'right'}}>
-          <Button.Group size="small">
-            <Button icon='edit' disabled={!this.props.connected} />
-            {deleteButton}
-          </Button.Group>
+          <Tag color='#5243aa'>Purple</Tag>
+          <Tag color='#ff8b00'>Orange</Tag>
+          <Tag color='#0052cc'>Blue</Tag>
         </div>
       </div>
     );
+    if (this.state.edit) {
+      infoLine = (
+        <div style={{marginBottom: '1em'}}>
+          <TagPicker
+            value={this.state.selectedTags}
+            onChange={event => this.setState({selectedTags: event})}
+          />
+        </div>
+      );
+    }
+
+    //--------------------------------------------------------------------------
+    // Description
+    //--------------------------------------------------------------------------
+    var description = this.props.description;
+    if (this.state.edit) {
+      description = (
+        <TextArea
+          rows={5}
+          value={this.state.description}
+          onChange={(event) => this.setState({description: event.target.value})}
+        />
+      );
+    }
 
     //--------------------------------------------------------------------------
     // Task columns
@@ -189,7 +290,8 @@ class ProjectView extends Component {
           <div style={{float: 'right'}}>
             <Button.Group size="small">
               <Button icon='check-circle' disabled={!this.props.connected} />
-              <Button icon='edit' disabled={!this.props.connected} />
+              <Button icon='edit' disabled={!this.props.connected}
+                />
               <Button icon='delete' disabled={!this.props.connected} />
             </Button.Group>
           </div>
@@ -236,37 +338,16 @@ class ProjectView extends Component {
       data: 'Worked for <b>4 hours and 45 minutes</b> on Friday, December 17, 2018.'
     }];
 
+    //--------------------------------------------------------------------------
+    // Render the whole thing
+    //--------------------------------------------------------------------------
     return (
       <div className='col-md-6 col-md-offset-3 app-container'>
-        <Card title={title}>
+        <Card title={cardTitle}>
           <div style={styles.text}>
-            <div style={{marginBottom: '1.5em', color: 'Gray'}}>
-              <Tooltip placement="right" title={timeTooltip}>
-                <div style={{display: 'inline-block'}}>
-                  Time spent: <b>{minutesToString(this.props.durationTotal)}</b>
-                </div>
-              </Tooltip>
-              <div style={{float: 'right'}}>
-                <Tag color='#5243aa'>Purple</Tag>
-                <Tag color='#ff8b00'>Orange</Tag>
-                <Tag color='#0052cc'>Blue</Tag>
-              </div>
-            </div>
+            {infoLine}
             <div>
-              {this.props.description}
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus
-            ac metus condimentum, venenatis lorem vel, blandit erat. Maecenas
-            turpis justo, pulvinar at ipsum ut, aliquam finibus libero.
-            Vestibulum viverra neque non egestas varius. Maecenas eget tellus
-            quis ante interdum vulputate non eu lectus. Ut venenatis vulputate
-            pulvinar. Pellentesque gravida dui risus, vitae bibendum sem
-            fringilla a. Vivamus elementum massa non volutpat condimentum.
-            Vivamus elementum, ex eu eleifend finibus, ex turpis ultricies nibh,
-            sit amet fermentum odio lacus id ligula. Curabitur eget nisi massa.
-            Morbi porttitor venenatis dui, sed consequat nulla mattis eget.
-            Donec auctor massa enim. Sed aliquam molestie sem, non volutpat
-            justo sodales sed. Nunc tincidunt, massa sit amet ornare commodo,
-            arcu magna dictum augue, in dictum libero dui sed nisl.
+              {description}
             </div>
           </div>
           <div style={styles.sectionSeparator}>Tasks</div>
