@@ -6,7 +6,9 @@
 //------------------------------------------------------------------------------
 
 import React, { Component } from 'react';
-import { Button, Icon, Table } from 'antd';
+import { Button, Table } from 'antd';
+
+import SessionAddModal from './SessionAddModal';
 
 //------------------------------------------------------------------------------
 // Styles
@@ -28,10 +30,21 @@ const styles = {
 // Work session list
 //------------------------------------------------------------------------------
 class WorkSessionList extends Component {
+  //----------------------------------------------------------------------------
+  // Helpers
+  //----------------------------------------------------------------------------
+  addSession = (duration, date) => {
+    console.log("Add session:", date, duration);
+  }
+
+  showAddDialog = () => {
+    this.addDialog.show();
+  }
+
+  //----------------------------------------------------------------------------
+  // Render
+  //----------------------------------------------------------------------------
   render() {
-    //--------------------------------------------------------------------------
-    // Session columns
-    //--------------------------------------------------------------------------
     const sessionColumns = [{
       dataIndex: 'key',
       render: (_, record) => (
@@ -63,9 +76,17 @@ class WorkSessionList extends Component {
 
     return (
       <div>
+        <SessionAddModal
+          ref={(el) => { this.addDialog = el; }}
+          onAdd={this.addSession}
+        />
         <div className='control-button-container'>
-          <Button size='small'>
-            <Icon type='plus' /> Add session
+          <Button
+            onClick={this.showAddDialog}
+            icon='plus'
+            size='small'
+          >
+            Add session
           </Button>
         </div>
         <Table
