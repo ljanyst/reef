@@ -354,7 +354,7 @@ func (db *Database) getCompleteness(id uint64) (float32, error) {
 	}
 
 	if all == 0 {
-		return 0, nil
+		return 1, nil
 	}
 	return float32(done) / float32(all), nil
 }
@@ -396,6 +396,10 @@ func (db *Database) getSummaryList() ([]Summary, error) {
 			return []Summary{}, err
 		}
 		summary.Tags, err = db.getTagIds(summary.Id)
+		if err != nil {
+			return []Summary{}, err
+		}
+		summary.Completeness, err = db.getCompleteness(summary.Id)
 		if err != nil {
 			return []Summary{}, err
 		}
@@ -668,6 +672,32 @@ func (db *Database) DeleteTask(id uint64) error {
 	query = "DELETE FROM tasks WHERE id = ?"
 	if _, err := db.db.Exec(query, id); err != nil {
 		return err
+	}
+
+	return db.notifyProject(projectId)
+}
+
+func (db *Database) ToggleTask(id uint64) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	query := "SELECT projectId FROM tasks WHERE id = ?"
+	var projectId uint64
+	if err := db.db.QueryRow(query, id).Scan(&projectId); err != nil {
+		return err
+	}
+
+	query = "SELECT done FROM tasks WHERE id = ?"
+	var status bool
+	err := db.db.QueryRow(query, id).Scan(&status)
+	if err != nil {
+		return fmt.Errorf("Unable get task status: %s", err.Error())
+	}
+
+	query = "UPDATE tasks SET done=? WHERE id=?"
+	_, err = db.db.Exec(query, !status, id)
+	if err != nil {
+		return fmt.Errorf("Unable toggle task: %s", err.Error())
 	}
 
 	return db.notifyProject(projectId)
