@@ -13,7 +13,7 @@ import sortBy from 'sort-by';
 
 import { BACKEND_OPENED } from '../actions/backend';
 import TagPicker from './TagPicker';
-import ProjectAddModal from './ProjectAddModal';
+import ItemAddModal from './ItemAddModal';
 import { projectNew } from '../utils/backendActions';
 
 const styles = {
@@ -29,6 +29,9 @@ const styles = {
   }
 };
 
+//------------------------------------------------------------------------------
+// Project list
+//------------------------------------------------------------------------------
 class ProjectList extends Component {
   addProject = name => {
     projectNew(name)
@@ -74,10 +77,11 @@ class ProjectList extends Component {
     return (
       <div className='col-md-8 col-md-offset-2 app-container'>
         <h2>Projects</h2>
-        <ProjectAddModal
+        <ItemAddModal
           ref={(el) => { this.addDialog = el; }}
           onAdd={this.addProject}
           title='Add project'
+          label='Project name'
           />
         <div className='control-button-container'>
           <Button

@@ -23,12 +23,13 @@ const styles = {
 //------------------------------------------------------------------------------
 // Modal for adding and editing tags
 //------------------------------------------------------------------------------
-class ProjectAddModal extends Component {
+class ItemAddModal extends Component {
   //----------------------------------------------------------------------------
   // Property types
   //----------------------------------------------------------------------------
   static propTypes = {
     title: PropTypes.string,
+    label: PropTypes.string,
     onAdd: PropTypes.func
   }
 
@@ -72,14 +73,14 @@ class ProjectAddModal extends Component {
     };
     return (
       <Modal
-        title='Add project'
+        title={this.props.title}
         visible={this.state.visible}
         onOk={this.handleOk}
         onCancel={this.handleCancel}
         >
         <div style={styles.content}>
           <Form>
-            <Form.Item {...formItemLayout} label='Project Name'>
+            <Form.Item {...formItemLayout} label={this.props.label}>
               <Input
                 value={this.state.name}
                 style={styles.center}
@@ -93,4 +94,4 @@ class ProjectAddModal extends Component {
   };
 }
 
-export default ProjectAddModal;
+export default ItemAddModal;
