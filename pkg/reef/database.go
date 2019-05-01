@@ -655,6 +655,24 @@ func (db *Database) AddTask(projectId uint64, taskDescription string) error {
 	return db.notifyProject(projectId)
 }
 
+func (db *Database) DeleteTask(id uint64) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	query := "SELECT projectId FROM tasks WHERE id = ?"
+	var projectId uint64
+	if err := db.db.QueryRow(query, id).Scan(&projectId); err != nil {
+		return err
+	}
+
+	query = "DELETE FROM tasks WHERE id = ?"
+	if _, err := db.db.Exec(query, id); err != nil {
+		return err
+	}
+
+	return db.notifyProject(projectId)
+}
+
 func NewDatabase(dbDir string) (*Database, error) {
 	db := new(Database)
 	err := os.MkdirAll(dbDir, os.ModePerm)
