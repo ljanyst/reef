@@ -5,7 +5,9 @@
 // Licensed under the GPL 3 License, see the LICENSE file for details.
 //------------------------------------------------------------------------------
 
-import { TAG_NEW, TAG_LIST_SET, TAG_DELETE, TAG_EDIT } from '../actions/tags';
+import {
+  TAG_UPDATE, TAG_LIST_SET, TAG_DELETE, TAG_EDIT
+} from '../actions/tags';
 
 const tagsState = {};
 
@@ -23,7 +25,7 @@ export function tagsReducer(state = tagsState, action) {
     }, {});
     return tags;
 
-  case TAG_NEW:
+  case TAG_UPDATE:
     newState[action.tag.id] = action.tag;
     return newState;
 

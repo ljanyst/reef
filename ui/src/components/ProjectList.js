@@ -107,11 +107,9 @@ function mapStateToProps(state, ownProps) {
         return {
           key: obj.id,
           title: obj.title,
-          tags: [
-            {name: 'Purple', color: '#5243aa'},
-            {name: 'Orange', color: '#ff8b00'},
-            {name: 'Blue', color: '#0052cc'}
-          ],
+          tags: obj.tags
+            .map(key => state.tags[key])
+            .sort(sortBy('name')),
           progress: 0.92
         };
       });

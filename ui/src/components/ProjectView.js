@@ -248,9 +248,16 @@ class ProjectView extends Component {
           </div>
         </Tooltip>
         <div style={{float: 'right'}}>
-          <Tag color='#5243aa'>Purple</Tag>
-          <Tag color='#ff8b00'>Orange</Tag>
-          <Tag color='#0052cc'>Blue</Tag>
+          {
+            this.props.tags
+            .sort()
+            .map(key => {
+              const tag = this.props.tagInfo[key];
+              return (
+                <Tag key={tag.id} color={tag.color}>{tag.name}</Tag>
+              );
+            })
+          }
         </div>
       </div>
     );
@@ -397,7 +404,8 @@ function mapStateToProps(state, ownProps) {
   if (id === state.project.id) {
     const st = {
       ...mapped,
-      ...state.project
+      ...state.project,
+      tagInfo: state.tags
     };
     return st;
   }

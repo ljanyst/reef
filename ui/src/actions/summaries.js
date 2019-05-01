@@ -6,7 +6,7 @@
 //------------------------------------------------------------------------------
 
 export const SUMMARY_LIST_SET = 'SUMMARY_LIST_SET';
-export const SUMMARY_NEW = 'SUMMARY_NEW';
+export const SUMMARY_UPDATE = 'SUMMARY_UPDATE';
 
 export function summaryListSet(summaryList) {
   return {
@@ -15,9 +15,9 @@ export function summaryListSet(summaryList) {
   };
 }
 
-export function summaryNew(summary) {
+export function summaryUpdate(summary) {
   return {
-    type: SUMMARY_NEW,
+    type: SUMMARY_UPDATE,
     summary
   };
 }

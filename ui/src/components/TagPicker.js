@@ -18,7 +18,6 @@ class TagPicker extends Component {
   }
 
   constructor(props) {
-    console.log(props.value);
     super();
     this.state = {
       selectedTags: props.value

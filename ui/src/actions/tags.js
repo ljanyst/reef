@@ -5,14 +5,14 @@
 // Licensed under the GPL 3 License, see the LICENSE file for details.
 //------------------------------------------------------------------------------
 
-export const TAG_NEW = 'TAG_NEW';
+export const TAG_UPDATE = 'TAG_UPDATE';
 export const TAG_LIST_SET = 'TAG_LIST_SET';
 export const TAG_DELETE = 'TAG_DELETE';
 export const TAG_EDIT = 'TAG_EDIT';
 
-export function tagNew(tag) {
+export function tagUpdate(tag) {
   return {
-    type: TAG_NEW,
+    type: TAG_UPDATE,
     tag
   };
 }
