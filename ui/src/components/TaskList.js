@@ -6,12 +6,12 @@
 //------------------------------------------------------------------------------
 
 import React, { Component } from 'react';
-import { Button, Icon, Progress, Table, message } from 'antd';
+import { Button, Icon, Progress, Table, message, Popconfirm } from 'antd';
 import { connect } from 'react-redux';
 
 import { BACKEND_OPENED } from '../actions/backend';
 import ItemAddModal from './ItemAddModal';
-import { taskNew } from '../utils/backendActions';
+import { taskNew, taskDelete } from '../utils/backendActions';
 
 //------------------------------------------------------------------------------
 // Task list
@@ -27,6 +27,13 @@ class TaskList extends Component {
       });
   }
 
+  deleteTask = id => {
+    taskDelete(id)
+      .catch(error => {
+        setTimeout(() => message.error(error.message), 500);
+      });
+  };
+
   showAddDialog = () => {
     this.addDialog.show();
   }
@@ -35,6 +42,23 @@ class TaskList extends Component {
   // Render
   //----------------------------------------------------------------------------
   render() {
+    const getDeleteButton = (id) => {
+      if (this.props.connected) {
+        return (
+          <Popconfirm
+            placement="topRight"
+            title={`Are you sure you want to delete this task`}
+            onConfirm={() => this.deleteTask(id)}
+            okText="Yes"
+            cancelText="No">
+            <Button icon='delete' disabled={false} />
+          </Popconfirm>
+        );
+      }
+      return (
+        <Button icon='delete' disabled={true} />
+      );
+    };
     const taskColumns = [{
       dataIndex: 'id',
       render: (_, record) => (
@@ -43,9 +67,8 @@ class TaskList extends Component {
           <div style={{float: 'right'}}>
             <Button.Group size="small">
               <Button icon='check-circle' disabled={!this.props.connected} />
-              <Button icon='edit' disabled={!this.props.connected}
-                />
-              <Button icon='delete' disabled={!this.props.connected} />
+              <Button icon='edit' disabled={!this.props.connected} />
+              {getDeleteButton(record.id)}
             </Button.Group>
           </div>
         </div>)

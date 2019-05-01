@@ -62,3 +62,10 @@ export function taskNew(projectId, taskDescription) {
     taskNewParams: {projectId, taskDescription}
   });
 }
+
+export function taskDelete(taskId) {
+  return backend.sendMessage({
+    action: 'TASK_DELETE',
+    taskDeleteParams: taskId
+  });
+}
