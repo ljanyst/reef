@@ -26,6 +26,7 @@ type Request struct {
 	ProjectGetParams    uint64            `json:"projectGetParams"`
 	ProjectDeleteParams uint64            `json:"projectDeleteParams"`
 	ProjectEditParams   ProjectEditParams `json:"projectEditParams"`
+	TaskNewParams       TaskNewParams     `json:"taskNewParams"`
 }
 
 type TagNewParams struct {
@@ -44,6 +45,11 @@ type ProjectEditParams struct {
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
 	Tags        []uint64 `json:"tags"`
+}
+
+type TaskNewParams struct {
+	ProjectId       uint64 `json:"projectId"`
+	TaskDescription string `json:"taskDescription"`
 }
 
 type ActionResponse struct {
@@ -100,6 +106,11 @@ func (c *Controller) createCallMap() {
 	c.callMap["PROJECT_EDIT"] = func(db *Database, req *Request) (bool, error) {
 		p := req.ProjectEditParams
 		return true, db.EditProject(p.Id, p.Title, p.Description, p.Tags)
+	}
+
+	c.callMap["TASK_NEW"] = func(db *Database, req *Request) (bool, error) {
+		p := req.TaskNewParams
+		return true, db.AddTask(p.ProjectId, p.TaskDescription)
 	}
 }
 

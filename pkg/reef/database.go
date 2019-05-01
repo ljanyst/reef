@@ -37,9 +37,10 @@ type Summary struct {
 }
 
 type Task struct {
-	Id    uint64 `json:"id"`
-	Title string `json:"title"`
-	Done  bool   `json:"done"`
+	Id          uint64 `json:"id"`
+	ProjectId   uint64 `json:"projectId"`
+	Description string `json:"description"`
+	Done        bool   `json:"done"`
 }
 
 type Session struct {
@@ -238,16 +239,20 @@ func (db *Database) getTagById(id uint64) (Tag, error) {
 	return tag, nil
 }
 
-func (db *Database) getSummaryByTitle(title string) (Summary, error) {
-	query := "SELECT id, title FROM projects WHERE title = ?;"
+func (db *Database) getSummaryById(id uint64) (Summary, error) {
+	query := "SELECT id, title FROM projects WHERE id = ?;"
 	var summary Summary
-	if err := db.db.QueryRow(query, title).Scan(&summary.Id, &summary.Title); err != nil {
+	row := db.db.QueryRow(query, id)
+	if err := row.Scan(&summary.Id, &summary.Title); err != nil {
 		return Summary{}, err
 	}
 
 	var err error
-	summary.Tags, err = db.getTagIds(summary.Id)
-	if err != nil {
+	if summary.Tags, err = db.getTagIds(id); err != nil {
+		return Summary{}, err
+	}
+
+	if summary.Completeness, err = db.getCompleteness(id); err != nil {
 		return Summary{}, err
 	}
 
@@ -313,6 +318,47 @@ func (db *Database) getAllTagIds() ([]uint64, error) {
 	return tagIds, nil
 }
 
+func (db *Database) getTasks(id uint64) ([]Task, error) {
+	tasks := []Task{}
+	query := "SELECT id, done, description FROM tasks WHERE projectId = ?;"
+	rows, err := db.db.Query(query, id)
+	if err != nil {
+		return []Task{}, err
+	}
+	for rows.Next() {
+		var task Task
+		err := rows.Scan(&task.Id, &task.Done, &task.Description)
+		if err != nil {
+			return []Task{}, err
+		}
+		task.ProjectId = id
+		tasks = append(tasks, task)
+	}
+	if err := rows.Err(); err != nil {
+		return []Task{}, err
+	}
+	return tasks, nil
+}
+
+func (db *Database) getCompleteness(id uint64) (float32, error) {
+	query := "SELECT COUNT(*) FROM tasks WHERE projectId = ?"
+	var all uint64
+	if err := db.db.QueryRow(query, id).Scan(&all); err != nil {
+		return 0, err
+	}
+
+	query = "SELECT COUNT(*) FROM tasks WHERE projectId = ? AND done = TRUE"
+	var done uint64
+	if err := db.db.QueryRow(query, id).Scan(&done); err != nil {
+		return 0, err
+	}
+
+	if all == 0 {
+		return 0, nil
+	}
+	return float32(done) / float32(all), nil
+}
+
 func (db *Database) getProjectById(id uint64) (Project, error) {
 	query := "SELECT id, title, description FROM projects WHERE id = ?;"
 	var project Project
@@ -320,12 +366,18 @@ func (db *Database) getProjectById(id uint64) (Project, error) {
 	if err != nil {
 		return Project{}, err
 	}
-	project.Tags, err = db.getTagIds(id)
-	if err != nil {
+
+	if project.Tags, err = db.getTagIds(id); err != nil {
 		return Project{}, err
 	}
 
-	project.Tasks = []Task{}
+	if project.Tasks, err = db.getTasks(id); err != nil {
+		return Project{}, err
+	}
+
+	if project.Completeness, err = db.getCompleteness(id); err != nil {
+		return Project{}, err
+	}
 	project.Sessions = []Session{}
 
 	return project, nil
@@ -434,7 +486,14 @@ func (db *Database) CreateProject(title string) error {
 		return fmt.Errorf("Unable to create project: %s", err.Error())
 	}
 
-	summary, err := db.getSummaryByTitle(title)
+	query := "SELECT id FROM projects WHERE title = ?"
+	var id uint64
+	err = db.db.QueryRow(query, title).Scan(&id)
+	if err != nil {
+		return fmt.Errorf("Unable to query new project id: %s", err)
+	}
+
+	summary, err := db.getSummaryById(id)
 	if err != nil {
 		return fmt.Errorf("Unable to query new project \"%s\": %s", title, err)
 	}
@@ -496,6 +555,25 @@ func getListDifference(old, new []uint64) (added, deleted []uint64) {
 	return
 }
 
+func (db *Database) notifyProject(id uint64) error {
+	summary, err := db.getSummaryById(id)
+	if err != nil {
+		return err
+	}
+
+	project, err := db.getProjectById(id)
+	if err != nil {
+		return err
+	}
+
+	db.notifyListeners(func(listener DatabaseEventListener) {
+		listener.OnSummaryUpdate(summary)
+		listener.OnProjectUpdate(project)
+	})
+
+	return nil
+}
+
 func (db *Database) EditProject(
 	id uint64,
 	title, description string,
@@ -542,17 +620,6 @@ func (db *Database) EditProject(
 		}
 	}
 
-	// Recompute the relevant information based on the database state
-	summary, err := db.getSummaryByTitle(title)
-	if err != nil {
-		return fmt.Errorf("Unable to query new project \"%s\": %s", title, err)
-	}
-
-	project, err := db.getProjectById(id)
-	if err != nil {
-		return err
-	}
-
 	modifiedTags := append(removedTags, newTags...)
 	modTagInfos := []Tag{}
 
@@ -566,14 +633,26 @@ func (db *Database) EditProject(
 
 	// Tall all the connected frontends
 	db.notifyListeners(func(listener DatabaseEventListener) {
-		listener.OnSummaryUpdate(summary)
-		listener.OnProjectUpdate(project)
 		for _, tagInfo := range modTagInfos {
 			listener.OnTagUpdate(tagInfo)
 		}
 	})
 
-	return nil
+	return db.notifyProject(id)
+}
+
+func (db *Database) AddTask(projectId uint64, taskDescription string) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	query := "INSERT INTO tasks (projectId, done, description)" +
+		"VALUES (?, 0, ?);"
+	_, err := db.db.Exec(query, projectId, taskDescription)
+	if err != nil {
+		return fmt.Errorf("Unable add new task: %s", err.Error())
+	}
+
+	return db.notifyProject(projectId)
 }
 
 func NewDatabase(dbDir string) (*Database, error) {
