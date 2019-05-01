@@ -55,3 +55,10 @@ export function projectEdit(id, title, description, tags) {
     projectEditParams: {id, title, description, tags}
   });
 }
+
+export function taskNew(projectId, taskDescription) {
+  return backend.sendMessage({
+    action: 'TASK_NEW',
+    taskNewParams: {projectId, taskDescription}
+  });
+}

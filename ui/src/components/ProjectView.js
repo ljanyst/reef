@@ -7,12 +7,13 @@
 
 import React, { Component } from 'react';
 import {
-  Card, Button, Tag, Tooltip, Icon, Progress, Table, Empty, Popconfirm, message,
-  Input
+  Card, Button, Tag, Tooltip, Empty, Popconfirm, message, Input
 } from 'antd';
 import { connect } from 'react-redux';
 import { withRouter } from 'react-router';
 
+import TaskList from './TaskList';
+import WorkSessionList from './WorkSessionList';
 import TagPicker from './TagPicker';
 import { BACKEND_OPENED } from '../actions/backend';
 import {
@@ -23,6 +24,9 @@ import { minutesToString } from '../utils/helpers';
 
 const { TextArea } = Input;
 
+//------------------------------------------------------------------------------
+// Styles
+//------------------------------------------------------------------------------
 const styles = {
   text: {
     marginBottom: '1em',
@@ -44,16 +48,6 @@ const styles = {
     marginBottom: '2em',
     paddingLeft: '1em',
     fontWeight: 'bold'
-  },
-  workSessionNumber: {
-    borderRight: '1px solid LightGray',
-    color: 'Gray',
-    textAlign: 'right',
-    width: '4em',
-    maxWidth: '4em',
-    marginRight: '1em',
-    paddingRight: '0.5em',
-    float: 'left'
   },
   infoPanel: {
     color: 'Gray',
@@ -287,65 +281,6 @@ class ProjectView extends Component {
     }
 
     //--------------------------------------------------------------------------
-    // Task columns
-    //--------------------------------------------------------------------------
-    const taskColumns = [{
-      dataIndex: 'key',
-      render: (_, record) => (
-        <div>
-          {record.description}
-          <div style={{float: 'right'}}>
-            <Button.Group size="small">
-              <Button icon='check-circle' disabled={!this.props.connected} />
-              <Button icon='edit' disabled={!this.props.connected}
-                />
-              <Button icon='delete' disabled={!this.props.connected} />
-            </Button.Group>
-          </div>
-        </div>)
-    }];
-
-    const taskData =[{
-      key: 'asdf1',
-      description: 'Item 1'
-    }, {
-      key: 'asdf2',
-      description: 'Item 2'
-    }, {
-      key: 'asdf3',
-      description: 'Item 3'
-    }];
-
-    const sessionColumns = [{
-      dataIndex: 'key',
-      render: (_, record) => (
-        <div>
-          <div style={styles.workSessionNumber}>
-            {record.key}.
-          </div>
-          <div>
-            {record.data}.
-            <div style={{float: 'right'}}>
-              <Button.Group size="small">
-                <Button icon='delete' disabled={!this.props.connected} />
-              </Button.Group>
-            </div>
-          </div>
-        </div>
-      )}];
-
-    const sessionData = [{
-      key: '1',
-      data: 'Worked for <b>2 hour and 2 minutes</b> on Wednesday, December 14, 2018.'
-    }, {
-      key: '2',
-      data: 'Worked for <b>3 hours and 25 minutes</b> on Thursday, December 14, 2018.'
-    },  {
-      key: '12343',
-      data: 'Worked for <b>4 hours and 45 minutes</b> on Friday, December 17, 2018.'
-    }];
-
-    //--------------------------------------------------------------------------
     // Render the whole thing
     //--------------------------------------------------------------------------
     return (
@@ -358,34 +293,9 @@ class ProjectView extends Component {
             </div>
           </div>
           <div style={styles.sectionSeparator}>Tasks</div>
-          <div className='control-button-container'>
-            <Button size='small'>
-              <Icon type='plus' /> Add task
-            </Button>
-          </div>
-          <div style={{margin: '1em'}}>
-            <Progress percent={50} />
-          </div>
-          <Table
-            showHeader={false}
-            columns={taskColumns}
-            dataSource={taskData}
-            size='small'
-            pagination={false}
-            />
+          <TaskList />
           <div style={styles.sectionSeparator}>Work sessions</div>
-          <div className='control-button-container'>
-            <Button size='small'>
-              <Icon type='plus' /> Add session
-            </Button>
-          </div>
-          <Table
-            showHeader={false}
-            columns={sessionColumns}
-            dataSource={sessionData}
-            size='small'
-            pagination={false}
-            />
+          <WorkSessionList />
         </Card>
       </div>
     );
@@ -402,10 +312,17 @@ function mapStateToProps(state, ownProps) {
   };
 
   if (id === state.project.id) {
+    const p = state.project;
     const st = {
       ...mapped,
-      ...state.project,
-      tagInfo: state.tags
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      tags: p.tags,
+      tagInfo: state.tags,
+      durationTotal: p.durationTotal,
+      durationMonth: p.durationMonth,
+      durationWeek: p.durationWeek
     };
     return st;
   }

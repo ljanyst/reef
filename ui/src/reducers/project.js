@@ -24,12 +24,7 @@ export function projectReducer(state = projectState, action) {
     if (action.project.id !== state.id) {
       return state;
     }
-    return {
-      ...state,
-      title: action.project.title,
-      description: action.project.description,
-      tags: action.project.tags
-    };
+    return action.project;
 
   default:
     return state;

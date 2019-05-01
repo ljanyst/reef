@@ -58,7 +58,7 @@ class ProjectList extends Component {
                 <Tag color={tag.color} key={tag.name}>{tag.name}</Tag>
               ))
             }
-          <div style={styles.progress}>{Math.floor(record.progress*100)}%</div>
+          <div style={styles.progress}>{Math.round(record.progress*100)}%</div>
           </div>
         </div>
       )
@@ -114,7 +114,7 @@ function mapStateToProps(state, ownProps) {
           tags: obj.tags
             .map(key => state.tags[key])
             .sort(sortBy('name')),
-          progress: 0.92
+          progress: obj.completeness
         };
       });
 
