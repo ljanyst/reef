@@ -703,6 +703,25 @@ func (db *Database) ToggleTask(id uint64) error {
 	return db.notifyProject(projectId)
 }
 
+func (db *Database) EditTask(id uint64, description string) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	query := "SELECT projectId FROM tasks WHERE id = ?"
+	var projectId uint64
+	if err := db.db.QueryRow(query, id).Scan(&projectId); err != nil {
+		return fmt.Errorf("Unable get projectId for task: %s", err.Error())
+	}
+
+	query = "UPDATE tasks SET description=? WHERE id=?"
+	_, err := db.db.Exec(query, description, id)
+	if err != nil {
+		return fmt.Errorf("Unable set task description: %s", err.Error())
+	}
+
+	return db.notifyProject(projectId)
+}
+
 func NewDatabase(dbDir string) (*Database, error) {
 	db := new(Database)
 	err := os.MkdirAll(dbDir, os.ModePerm)

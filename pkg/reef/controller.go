@@ -29,6 +29,7 @@ type Request struct {
 	TaskNewParams       TaskNewParams     `json:"taskNewParams"`
 	TaskDeleteParams    uint64            `json:"taskDeleteParams"`
 	TaskToggleParams    uint64            `json:"taskToggleParams"`
+	TaskEditParams      TaskEditParams    `json:"taskEditParams"`
 }
 
 type TagNewParams struct {
@@ -51,6 +52,11 @@ type ProjectEditParams struct {
 
 type TaskNewParams struct {
 	ProjectId       uint64 `json:"projectId"`
+	TaskDescription string `json:"taskDescription"`
+}
+
+type TaskEditParams struct {
+	TaskId          uint64 `json:"taskId"`
 	TaskDescription string `json:"taskDescription"`
 }
 
@@ -121,6 +127,11 @@ func (c *Controller) createCallMap() {
 
 	c.callMap["TASK_TOGGLE"] = func(db *Database, req *Request) (bool, error) {
 		return true, db.ToggleTask(req.TaskToggleParams)
+	}
+
+	c.callMap["TASK_EDIT"] = func(db *Database, req *Request) (bool, error) {
+		p := req.TaskEditParams
+		return true, db.EditTask(p.TaskId, p.TaskDescription)
 	}
 }
 
