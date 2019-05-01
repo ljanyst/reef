@@ -69,3 +69,10 @@ export function taskDelete(taskId) {
     taskDeleteParams: taskId
   });
 }
+
+export function taskToggle(taskId) {
+  return backend.sendMessage({
+    action: 'TASK_TOGGLE',
+    taskToggleParams: taskId
+  });
+}

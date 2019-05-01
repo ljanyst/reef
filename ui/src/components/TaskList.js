@@ -11,7 +11,19 @@ import { connect } from 'react-redux';
 
 import { BACKEND_OPENED } from '../actions/backend';
 import ItemAddModal from './ItemAddModal';
-import { taskNew, taskDelete } from '../utils/backendActions';
+import { taskNew, taskDelete, taskToggle } from '../utils/backendActions';
+
+//------------------------------------------------------------------------------
+// Styles
+//------------------------------------------------------------------------------
+const styles = {
+  descDone: {
+    color: '#ddd'
+  },
+  descNotDone: {
+    color: `#000`
+  }
+};
 
 //------------------------------------------------------------------------------
 // Task list
@@ -34,6 +46,13 @@ class TaskList extends Component {
       });
   };
 
+  toggleTask = id => {
+    taskToggle(id)
+      .catch(error => {
+        setTimeout(() => message.error(error.message), 500);
+      });
+  }
+
   showAddDialog = () => {
     this.addDialog.show();
   }
@@ -42,7 +61,7 @@ class TaskList extends Component {
   // Render
   //----------------------------------------------------------------------------
   render() {
-    const getDeleteButton = (id) => {
+    const getDeleteButton = id => {
       if (this.props.connected) {
         return (
           <Popconfirm
@@ -59,17 +78,30 @@ class TaskList extends Component {
         <Button icon='delete' disabled={true} />
       );
     };
+
+    const taskButtons = record => {
+      return (
+        <Button.Group size="small">
+          <Button
+            icon={record.done ? 'minus-circle' : 'check-circle'}
+            disabled={!this.props.connected}
+            onClick={() => this.toggleTask(record.id)}
+          />
+          <Button icon='edit' disabled={!this.props.connected} />
+          {getDeleteButton(record.id)}
+        </Button.Group>
+      );
+    };
+
     const taskColumns = [{
       dataIndex: 'id',
       render: (_, record) => (
         <div>
-          {record.description}
+          <span style={record.done ? styles.descDone : styles.descNotDone}>
+            {record.description}
+          </span>
           <div style={{float: 'right'}}>
-            <Button.Group size="small">
-              <Button icon='check-circle' disabled={!this.props.connected} />
-              <Button icon='edit' disabled={!this.props.connected} />
-              {getDeleteButton(record.id)}
-            </Button.Group>
+              {taskButtons(record)}
           </div>
         </div>)
     }];
