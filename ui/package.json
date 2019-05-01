@@ -6,6 +6,7 @@
     "antd": "^3.11.2",
     "chroma-js": "^1.4.1",
     "input-number": "^1.1.1",
+    "moment": "^2.24.0",
     "prop-types": "^15.6.2",
     "react": "^16.2.0",
     "react-color": "^2.14.1",
