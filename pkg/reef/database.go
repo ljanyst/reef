@@ -68,13 +68,14 @@ type Database struct {
 }
 
 type DatabaseEventListener interface {
-	OnTagNew(tag Tag)
+	OnTagUpdate(tag Tag)
 	OnTagDelete(id uint64)
 	OnTagList(tags []Tag)
 	OnTagEdit(id uint64, newName, newColor string)
-	OnSummaryNew(summary Summary)
+	OnSummaryUpdate(summary Summary)
 	OnSummaryList(summaries []Summary)
 	OnProjectDelete(id uint64)
+	OnProjectUpdate(project Project)
 }
 
 func (db *Database) readMetadata() (md map[string]string, err error) {
@@ -218,12 +219,22 @@ func (db *Database) notifyListeners(action func(DatabaseEventListener)) {
 	}
 }
 
-func (db *Database) getTagByName(name string) (Tag, error) {
-	query := "SELECT id, name, color FROM tags WHERE name = ?;"
+func (db *Database) getTagById(id uint64) (Tag, error) {
+	query := "SELECT id, name, color FROM tags WHERE id = ?;"
 	var tag Tag
-	if err := db.db.QueryRow(query, name).Scan(&tag.Id, &tag.Name, &tag.Color); err != nil {
+	err := db.db.QueryRow(query, id).Scan(&tag.Id, &tag.Name, &tag.Color)
+	if err != nil {
 		return Tag{}, err
 	}
+
+	query = "SELECT COUNT(*) FROM projectTags WHERE tagId = ?"
+	var projectCount uint32
+	err = db.db.QueryRow(query, id).Scan(&projectCount)
+	if err != nil {
+		return Tag{}, err
+	}
+	tag.NumberOfProjects = projectCount
+
 	return tag, nil
 }
 
@@ -233,28 +244,91 @@ func (db *Database) getSummaryByTitle(title string) (Summary, error) {
 	if err := db.db.QueryRow(query, title).Scan(&summary.Id, &summary.Title); err != nil {
 		return Summary{}, err
 	}
-	summary.Tags = []uint64{}
+
+	var err error
+	summary.Tags, err = db.getTagIds(summary.Id)
+	if err != nil {
+		return Summary{}, err
+	}
+
 	return summary, nil
 }
 
 func (db *Database) getTagList() ([]Tag, error) {
 	var tags []Tag
-	rows, err := db.db.Query("SELECT id, name, color FROM tags;")
+	tagIds, err := db.getAllTagIds()
 	if err != nil {
 		return []Tag{}, err
 	}
-	for rows.Next() {
-		var tag Tag
-		err := rows.Scan(&tag.Id, &tag.Name, &tag.Color)
-		if err != nil {
+
+	for _, id := range tagIds {
+		if tag, err := db.getTagById(id); err != nil {
 			return []Tag{}, err
+		} else {
+			tags = append(tags, tag)
 		}
-		tags = append(tags, tag)
+	}
+
+	return tags, nil
+}
+
+func (db *Database) getTagIds(id uint64) ([]uint64, error) {
+	tagIds := []uint64{}
+	query := "SELECT tagId FROM projectTags WHERE projectId = ?;"
+	rows, err := db.db.Query(query, id)
+	if err != nil {
+		return []uint64{}, err
+	}
+	for rows.Next() {
+		var tagId uint64
+		err := rows.Scan(&tagId)
+		if err != nil {
+			return []uint64{}, err
+		}
+		tagIds = append(tagIds, tagId)
 	}
 	if err := rows.Err(); err != nil {
-		return []Tag{}, err
+		return []uint64{}, err
 	}
-	return tags, nil
+	return tagIds, nil
+}
+
+func (db *Database) getAllTagIds() ([]uint64, error) {
+	tagIds := []uint64{}
+	rows, err := db.db.Query("SELECT id FROM tags;")
+	if err != nil {
+		return []uint64{}, err
+	}
+	for rows.Next() {
+		var tagId uint64
+		err := rows.Scan(&tagId)
+		if err != nil {
+			return []uint64{}, err
+		}
+		tagIds = append(tagIds, tagId)
+	}
+	if err := rows.Err(); err != nil {
+		return []uint64{}, err
+	}
+	return tagIds, nil
+}
+
+func (db *Database) getProjectById(id uint64) (Project, error) {
+	query := "SELECT id, title, description FROM projects WHERE id = ?;"
+	var project Project
+	err := db.db.QueryRow(query, id).Scan(&project.Id, &project.Title, &project.Description)
+	if err != nil {
+		return Project{}, err
+	}
+	project.Tags, err = db.getTagIds(id)
+	if err != nil {
+		return Project{}, err
+	}
+
+	project.Tasks = []Task{}
+	project.Sessions = []Session{}
+
+	return project, nil
 }
 
 func (db *Database) getSummaryList() ([]Summary, error) {
@@ -266,6 +340,10 @@ func (db *Database) getSummaryList() ([]Summary, error) {
 	for rows.Next() {
 		var summary Summary
 		err := rows.Scan(&summary.Id, &summary.Title)
+		if err != nil {
+			return []Summary{}, err
+		}
+		summary.Tags, err = db.getTagIds(summary.Id)
 		if err != nil {
 			return []Summary{}, err
 		}
@@ -289,11 +367,19 @@ func (db *Database) CreateTag(name string, color string) error {
 		return fmt.Errorf("Unable to insert tag: %s", err.Error())
 	}
 
-	tag, err := db.getTagByName(name)
+	var id uint64
+	row := db.db.QueryRow("SELECT id FROM tags WHERE name = ?;", name)
+	if err := row.Scan(id); err != nil {
+		return err
+	}
+
+	tag, err := db.getTagById(id)
 	if err != nil {
 		return fmt.Errorf("Unable to query new tag \"%s\": %s", name, err)
 	}
-	db.notifyListeners(func(listener DatabaseEventListener) { listener.OnTagNew(tag) })
+	db.notifyListeners(func(listener DatabaseEventListener) {
+		listener.OnTagUpdate(tag)
+	})
 	return nil
 }
 
@@ -353,7 +439,7 @@ func (db *Database) CreateProject(title string) error {
 		return fmt.Errorf("Unable to query new project \"%s\": %s", title, err)
 	}
 	db.notifyListeners(func(listener DatabaseEventListener) {
-		listener.OnSummaryNew(summary)
+		listener.OnSummaryUpdate(summary)
 	})
 	return nil
 }
@@ -362,15 +448,10 @@ func (db *Database) GetProject(id uint64, callback func(project Project)) error 
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
-	query := "SELECT id, title, description FROM projects WHERE id = ?;"
-	var project Project
-	err := db.db.QueryRow(query, id).Scan(&project.Id, &project.Title, &project.Description)
+	project, err := db.getProjectById(id)
 	if err != nil {
 		return err
 	}
-	project.Tags = []uint64{}
-	project.Tasks = []Task{}
-	project.Sessions = []Session{}
 
 	callback(project)
 	return nil
@@ -386,6 +467,112 @@ func (db *Database) DeleteProject(id uint64) error {
 	}
 
 	db.notifyListeners(func(listener DatabaseEventListener) { listener.OnProjectDelete(id) })
+	return nil
+}
+
+func inList(element uint64, lst []uint64) bool {
+	for _, elem := range lst {
+		if element == elem {
+			return true
+		}
+	}
+	return false
+}
+
+func getListDifference(old, new []uint64) (added, deleted []uint64) {
+	added = []uint64{}
+	deleted = []uint64{}
+	for _, elem := range old {
+		if !inList(elem, new) {
+			deleted = append(deleted, elem)
+		}
+	}
+
+	for _, elem := range new {
+		if !inList(elem, old) {
+			added = append(added, elem)
+		}
+	}
+	return
+}
+
+func (db *Database) EditProject(
+	id uint64,
+	title, description string,
+	tags []uint64) error {
+
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	// Update the title and description
+	query := "UPDATE projects SET title=?, description=? WHERE id=?;"
+	_, err := db.db.Exec(query, title, description, id)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint") {
+			return fmt.Errorf("Unable to rename project: %s already exists", title)
+		}
+		return fmt.Errorf("Unable to rename project: %s", err.Error())
+	}
+
+	// Get the difference of the tag lists
+	currentTags, err := db.getTagIds(id)
+	if err != nil {
+		return fmt.Errorf("Unable to get tag list: %s", err.Error())
+	}
+
+	newTags, removedTags := getListDifference(currentTags, tags)
+
+	// Associate new tags
+	query = "INSERT OR IGNORE INTO projectTags (projectId, tagId) VALUES (?, ?);"
+	for _, tagId := range newTags {
+		_, err := db.db.Exec(query, id, tagId)
+		if err != nil {
+			return fmt.Errorf("Unable to associate tag with project: (%d %d)",
+				id, tagId, err.Error())
+		}
+	}
+
+	// Remove the association of old tags
+	query = "DELETE FROM projectTags WHERE projectId = ? AND tagId = ?;"
+	for _, tagId := range removedTags {
+		_, err := db.db.Exec(query, id, tagId)
+		if err != nil {
+			return fmt.Errorf("Unable to disassociate tag from project: (%d %d)",
+				id, tagId, err.Error())
+		}
+	}
+
+	// Recompute the relevant information based on the database state
+	summary, err := db.getSummaryByTitle(title)
+	if err != nil {
+		return fmt.Errorf("Unable to query new project \"%s\": %s", title, err)
+	}
+
+	project, err := db.getProjectById(id)
+	if err != nil {
+		return err
+	}
+
+	modifiedTags := append(removedTags, newTags...)
+	modTagInfos := []Tag{}
+
+	for _, tagId := range modifiedTags {
+		if tagInfo, err := db.getTagById(tagId); err != nil {
+			return err
+		} else {
+			modTagInfos = append(modTagInfos, tagInfo)
+		}
+	}
+
+	// Tall all the connected frontends
+	db.notifyListeners(func(listener DatabaseEventListener) {
+		listener.OnSummaryUpdate(summary)
+		listener.OnProjectUpdate(project)
+		for _, tagInfo := range modTagInfos {
+			listener.OnTagUpdate(tagInfo)
+		}
+	})
+
 	return nil
 }
 

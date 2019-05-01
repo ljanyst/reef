@@ -16,15 +16,16 @@ import (
 )
 
 type Request struct {
-	Id                  string        `json:"id"`
-	Type                string        `json:"type"`
-	Action              string        `json:"action"`
-	TagNewParams        TagNewParams  `json:"tagNewParams"`
-	TagDeleteParams     uint64        `json:"tagDeleteParams"`
-	TagEditParams       TagEditParams `json:"tagEditParams"`
-	ProjectNewParams    string        `json:"projectNewParams"`
-	ProjectGetParams    uint64        `json:"projectGetParams"`
-	ProjectDeleteParams uint64        `json:"projectDeleteParams"`
+	Id                  string            `json:"id"`
+	Type                string            `json:"type"`
+	Action              string            `json:"action"`
+	TagNewParams        TagNewParams      `json:"tagNewParams"`
+	TagDeleteParams     uint64            `json:"tagDeleteParams"`
+	TagEditParams       TagEditParams     `json:"tagEditParams"`
+	ProjectNewParams    string            `json:"projectNewParams"`
+	ProjectGetParams    uint64            `json:"projectGetParams"`
+	ProjectDeleteParams uint64            `json:"projectDeleteParams"`
+	ProjectEditParams   ProjectEditParams `json:"projectEditParams"`
 }
 
 type TagNewParams struct {
@@ -36,6 +37,13 @@ type TagEditParams struct {
 	Id       uint64 `json:"id"`
 	NewName  string `json:"newName"`
 	NewColor string `json:"newColor"`
+}
+
+type ProjectEditParams struct {
+	Id          uint64   `json:"id"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Tags        []uint64 `json:"tags"`
 }
 
 type ActionResponse struct {
@@ -89,6 +97,10 @@ func (c *Controller) createCallMap() {
 		return true, db.DeleteProject(req.ProjectDeleteParams)
 	}
 
+	c.callMap["PROJECT_EDIT"] = func(db *Database, req *Request) (bool, error) {
+		p := req.ProjectEditParams
+		return true, db.EditProject(p.Id, p.Title, p.Description, p.Tags)
+	}
 }
 
 func (c *Controller) writeErrorResponse(msgId string, err error) error {
@@ -118,8 +130,8 @@ func (c *Controller) writeBackendMessage(msgType string, payload interface{}) er
 	return c.conn.WriteMessage(websocket.TextMessage, data)
 }
 
-func (c *Controller) OnTagNew(tag Tag) {
-	if err := c.writeBackendMessage("TAG_NEW", tag); err != nil {
+func (c *Controller) OnTagUpdate(tag Tag) {
+	if err := c.writeBackendMessage("TAG_UPDATE", tag); err != nil {
 		log.Error("Unable to send TAG_NEW message:", err)
 	}
 }
@@ -143,8 +155,8 @@ func (c *Controller) OnTagEdit(id uint64, newName, newColor string) {
 	}
 }
 
-func (c *Controller) OnSummaryNew(summary Summary) {
-	if err := c.writeBackendMessage("SUMMARY_NEW", summary); err != nil {
+func (c *Controller) OnSummaryUpdate(summary Summary) {
+	if err := c.writeBackendMessage("SUMMARY_UPDATE", summary); err != nil {
 		log.Error("Unable to send SUMMARY_NEW message:", err)
 	}
 }
@@ -158,6 +170,12 @@ func (c *Controller) OnSummaryList(summaries []Summary) {
 func (c *Controller) OnProjectDelete(id uint64) {
 	if err := c.writeBackendMessage("PROJECT_DELETE", id); err != nil {
 		log.Error("Unable to send PROJECT_DELETE message:", err)
+	}
+}
+
+func (c *Controller) OnProjectUpdate(project Project) {
+	if err := c.writeBackendMessage("PROJECT_UPDATE", project); err != nil {
+		log.Error("Unable to send PROJECT_UPDATE message:", err)
 	}
 }
 
