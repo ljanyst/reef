@@ -76,3 +76,10 @@ export function taskToggle(taskId) {
     taskToggleParams: taskId
   });
 }
+
+export function taskEdit(taskId, taskDescription) {
+  return backend.sendMessage({
+    action: 'TASK_EDIT',
+    taskEditParams: {taskId, taskDescription}
+  });
+}

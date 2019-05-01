@@ -6,12 +6,16 @@
 //------------------------------------------------------------------------------
 
 import React, { Component } from 'react';
-import { Button, Icon, Progress, Table, message, Popconfirm } from 'antd';
+import {
+  Button, Icon, Progress, Table, message, Popconfirm, Input
+} from 'antd';
 import { connect } from 'react-redux';
 
 import { BACKEND_OPENED } from '../actions/backend';
 import ItemAddModal from './ItemAddModal';
-import { taskNew, taskDelete, taskToggle } from '../utils/backendActions';
+import {
+  taskNew, taskDelete, taskToggle, taskEdit
+} from '../utils/backendActions';
 
 //------------------------------------------------------------------------------
 // Styles
@@ -22,6 +26,10 @@ const styles = {
   },
   descNotDone: {
     color: `#000`
+  },
+  taskEdit: {
+    width: '80%',
+    display: 'inline-block'
   }
 };
 
@@ -29,6 +37,13 @@ const styles = {
 // Task list
 //------------------------------------------------------------------------------
 class TaskList extends Component {
+  //----------------------------------------------------------------------------
+  // State
+  //----------------------------------------------------------------------------
+  state = {
+    edit: null
+  };
+
   //----------------------------------------------------------------------------
   // Helpers
   //----------------------------------------------------------------------------
@@ -48,6 +63,13 @@ class TaskList extends Component {
 
   toggleTask = id => {
     taskToggle(id)
+      .catch(error => {
+        setTimeout(() => message.error(error.message), 500);
+      });
+  }
+
+  editTask = (id, description) => {
+    taskEdit(id, description)
       .catch(error => {
         setTimeout(() => message.error(error.message), 500);
       });
@@ -80,6 +102,21 @@ class TaskList extends Component {
     };
 
     const taskButtons = record => {
+      if (this.state.edit === record.id) {
+        return (
+          <Button.Group size="small">
+            <Button
+              icon='save'
+              disabled={!this.props.connected}
+              onClick={() => {
+                this.editTask(record.id, this.state.description);
+                this.setState({edit: null});
+              }}>
+              Save
+            </Button>
+          </Button.Group>
+        );
+      }
       return (
         <Button.Group size="small">
           <Button
@@ -87,9 +124,35 @@ class TaskList extends Component {
             disabled={!this.props.connected}
             onClick={() => this.toggleTask(record.id)}
           />
-          <Button icon='edit' disabled={!this.props.connected} />
+          <Button
+            icon='edit'
+            disabled={!this.props.connected}
+            onClick={() => this.setState({
+              edit: record.id,
+              description: record.description
+            })}
+          />
           {getDeleteButton(record.id)}
         </Button.Group>
+      );
+    };
+
+    const getDescription = record => {
+      if (this.state.edit === record.id) {
+        return (
+          <div style={styles.taskEdit} >
+            <Input
+              size="small"
+              value={this.state.description}
+              onChange={(event) => this.setState({description: event.target.value})}
+            />
+          </div>
+        );
+      }
+      return (
+        <span style={record.done ? styles.descDone : styles.descNotDone}>
+          {record.description}
+        </span>
       );
     };
 
@@ -97,9 +160,7 @@ class TaskList extends Component {
       dataIndex: 'id',
       render: (_, record) => (
         <div>
-          <span style={record.done ? styles.descDone : styles.descNotDone}>
-            {record.description}
-          </span>
+          {getDescription(record)}
           <div style={{float: 'right'}}>
               {taskButtons(record)}
           </div>
