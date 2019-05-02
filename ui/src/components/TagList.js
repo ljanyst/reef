@@ -55,17 +55,17 @@ class TagList extends Component {
       align: 'right',
       dataIndex: 'numProjects'
     }, {
-      title: 'Hours (total)',
+      title: 'Duration (total)',
       align: 'right',
       dataIndex: 'hoursTotal'
     }, {
-      title: 'Hours (past year)',
-      align: 'right',
-      dataIndex: 'hoursYear'
-    }, {
-      title: 'Hours (past month)',
+      title: 'Duration (past month)',
       align: 'right',
       dataIndex: 'hoursMonth'
+    }, {
+      title: 'Duration (past week)',
+      align: 'right',
+      dataIndex: 'hoursWeek'
     }, {
       title: 'Action',
       align: 'right',
@@ -144,8 +144,8 @@ function mapStateToProps(state, ownProps) {
           key: obj.id,
           tag: {name: obj.name, color: obj.color},
           hoursTotal: minutesToHours(obj.durationTotal),
-          hoursYear: minutesToHours(obj.durationYear),
           hoursMonth: minutesToHours(obj.durationMonth),
+          hoursWeek: minutesToHours(obj.durationWeek),
           numProjects: obj.numProjects
         };
       });

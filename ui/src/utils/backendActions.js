@@ -83,3 +83,10 @@ export function taskEdit(taskId, taskDescription) {
     taskEditParams: {taskId, taskDescription}
   });
 }
+
+export function sessionNew(projectId, duration, date) {
+  return backend.sendMessage({
+    action: 'SESSION_NEW',
+    sessionNewParams: {projectId, duration, date}
+  });
+}

@@ -6,9 +6,15 @@
 //------------------------------------------------------------------------------
 
 import React, { Component } from 'react';
-import { Button, Table } from 'antd';
+import { Button, Table, message } from 'antd';
+import { connect } from 'react-redux';
+import moment from 'moment';
+import sortBy from 'sort-by';
 
 import SessionAddModal from './SessionAddModal';
+import { sessionNew } from '../utils/backendActions';
+import { BACKEND_OPENED } from '../actions/backend';
+import { minutesToString } from '../utils/helpers';
 
 //------------------------------------------------------------------------------
 // Styles
@@ -34,7 +40,8 @@ class WorkSessionList extends Component {
   // Helpers
   //----------------------------------------------------------------------------
   addSession = (duration, date) => {
-    console.log("Add session:", date, duration);
+    sessionNew(this.props.projectId, duration, date)
+      .catch(error => message.error(error.message));
   }
 
   showAddDialog = () => {
@@ -46,14 +53,15 @@ class WorkSessionList extends Component {
   //----------------------------------------------------------------------------
   render() {
     const sessionColumns = [{
-      dataIndex: 'key',
+      dataIndex: 'id',
       render: (_, record) => (
         <div>
           <div style={styles.workSessionNumber}>
-            {record.key}.
+            {record.num}.
           </div>
           <div>
-            {record.data}.
+            Worked for <b>{minutesToString(record.duration)} </b>
+            on {moment(record.date*1000).format('dddd, MMMM Do, YYYY')}.
             <div style={{float: 'right'}}>
               <Button.Group size="small">
                 <Button icon='delete' disabled={!this.props.connected} />
@@ -63,17 +71,6 @@ class WorkSessionList extends Component {
         </div>
       )}];
 
-    const sessionData = [{
-      key: '1',
-      data: 'Worked for <b>2 hour and 2 minutes</b> on Wednesday, December 14, 2018.'
-    }, {
-      key: '2',
-      data: 'Worked for <b>3 hours and 25 minutes</b> on Thursday, December 14, 2018.'
-    },  {
-      key: '12343',
-      data: 'Worked for <b>4 hours and 45 minutes</b> on Friday, December 17, 2018.'
-    }];
-
     return (
       <div>
         <SessionAddModal
@@ -82,6 +79,7 @@ class WorkSessionList extends Component {
         />
         <div className='control-button-container'>
           <Button
+            disabled={!this.props.connected}
             onClick={this.showAddDialog}
             icon='plus'
             size='small'
@@ -90,9 +88,10 @@ class WorkSessionList extends Component {
           </Button>
         </div>
         <Table
+          rowKey='id'
           showHeader={false}
           columns={sessionColumns}
-          dataSource={sessionData}
+          dataSource={this.props.sessions}
           size='small'
           pagination={false}
          />
@@ -101,4 +100,27 @@ class WorkSessionList extends Component {
   }
 }
 
-export default WorkSessionList;
+//------------------------------------------------------------------------------
+// The redux connection
+//------------------------------------------------------------------------------
+function mapStateToProps(state, ownProps) {
+  var i = state.project.sessions.length;
+  var sessions = state.project.sessions
+      .sort(sortBy('-date'))
+      .map(obj => {
+        i--;
+        return {num: i+1, ...obj};
+        });
+
+  return {
+    connected: state.backend.status === BACKEND_OPENED,
+    projectId: state.project.id,
+    sessions: sessions
+  };
+}
+
+function mapDispatchToProps(dispatch) {
+  return {};
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(WorkSessionList);
