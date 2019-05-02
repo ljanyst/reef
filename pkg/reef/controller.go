@@ -30,6 +30,7 @@ type Request struct {
 	TaskDeleteParams    uint64            `json:"taskDeleteParams"`
 	TaskToggleParams    uint64            `json:"taskToggleParams"`
 	TaskEditParams      TaskEditParams    `json:"taskEditParams"`
+	SessionNewParams    SessionNewParams  `json:"sessionNewParams"`
 }
 
 type TagNewParams struct {
@@ -58,6 +59,12 @@ type TaskNewParams struct {
 type TaskEditParams struct {
 	TaskId          uint64 `json:"taskId"`
 	TaskDescription string `json:"taskDescription"`
+}
+
+type SessionNewParams struct {
+	ProjectId uint64 `json:"projectId"`
+	Duration  uint64 `json:"duration"`
+	Date      uint64 `json:"date"`
 }
 
 type ActionResponse struct {
@@ -132,6 +139,11 @@ func (c *Controller) createCallMap() {
 	c.callMap["TASK_EDIT"] = func(db *Database, req *Request) (bool, error) {
 		p := req.TaskEditParams
 		return true, db.EditTask(p.TaskId, p.TaskDescription)
+	}
+
+	c.callMap["SESSION_NEW"] = func(db *Database, req *Request) (bool, error) {
+		p := req.SessionNewParams
+		return true, db.AddSession(p.ProjectId, p.Duration, p.Date)
 	}
 }
 

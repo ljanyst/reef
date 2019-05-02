@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
@@ -23,9 +24,9 @@ type Tag struct {
 	Id               uint64 `json:"id"`
 	Name             string `json:"name"`
 	Color            string `json:"color"`
-	DurationTotal    uint32 `json:"durationTotal"`
-	DurationYear     uint32 `json:"durationYear"`
-	DurationMonth    uint32 `json:"durationMonth"`
+	DurationTotal    uint64 `json:"durationTotal"`
+	DurationMonth    uint64 `json:"durationMonth"`
+	DurationWeek     uint64 `json:"durationWeek"`
 	NumberOfProjects uint32 `json:"numProjects"`
 }
 
@@ -45,8 +46,8 @@ type Task struct {
 
 type Session struct {
 	Id       uint64 `json:"id"`
-	Duration uint32 `json:"duration"`
-	Date     string `json:"date"`
+	Duration uint64 `json:"duration"`
+	Date     uint64 `json:"date"`
 }
 
 type Project struct {
@@ -54,9 +55,9 @@ type Project struct {
 	Title         string    `json:"title"`
 	Description   string    `json:"description"`
 	Tags          []uint64  `json:"tags"`
-	DurationTotal uint32    `json:"durationTotal"`
-	DurationMonth uint32    `json:"durationMonth"`
-	DurationWeek  uint32    `json:"durationWeek"`
+	DurationTotal uint64    `json:"durationTotal"`
+	DurationMonth uint64    `json:"durationMonth"`
+	DurationWeek  uint64    `json:"durationWeek"`
 	Completeness  float32   `json:"completeness"`
 	Tasks         []Task    `json:"tasks"`
 	Sessions      []Session `json:"sessions"`
@@ -152,8 +153,8 @@ func (db *Database) initializeNew() error {
 			"CREATE TABLE sessions (" +
 				"id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, " +
 				"projectId INTEGER NOT NULL, " +
-				"date DATE NOT NULL, " +
-				"length INTEGER NOT NULL," +
+				"timestamp DATETIME NOT NULL, " +
+				"duration INTEGER NOT NULL," +
 				"FOREIGN KEY(projectId) REFERENCES projects(id));",
 			"Unable to create the sessions table",
 		},
@@ -359,6 +360,50 @@ func (db *Database) getCompleteness(id uint64) (float32, error) {
 	return float32(done) / float32(all), nil
 }
 
+type SessionsInfo struct {
+	DurationTotal uint64
+	DurationMonth uint64
+	DurationWeek  uint64
+	Sessions      []Session
+}
+
+func (db *Database) getProjectSessions(projectId uint64) (SessionsInfo, error) {
+	var sInfo SessionsInfo
+	sInfo.Sessions = []Session{}
+	monthAgo := time.Now().AddDate(0, -1, 0)
+	weekAgo := time.Now().AddDate(0, 0, -7)
+	rows, err := db.db.Query("SELECT id, timestamp, duration FROM sessions")
+	if err != nil {
+		return SessionsInfo{}, fmt.Errorf("Can't get project sessions: %s", err.Error())
+	}
+	for rows.Next() {
+		var session Session
+		var dt time.Time
+		err := rows.Scan(&session.Id, &dt, &session.Duration)
+		if err != nil {
+			return SessionsInfo{},
+				fmt.Errorf("Can't parse project sessions: %s", err.Error())
+		}
+		session.Date = uint64(dt.Unix())
+		sInfo.Sessions = append(sInfo.Sessions, session)
+
+		sInfo.DurationTotal += session.Duration
+
+		if dt.After(monthAgo) {
+			sInfo.DurationMonth += session.Duration
+		}
+
+		if dt.After(weekAgo) {
+			sInfo.DurationWeek += session.Duration
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return SessionsInfo{},
+			fmt.Errorf("Can't process project sessions: %s", err.Error())
+	}
+	return sInfo, nil
+}
+
 func (db *Database) getProjectById(id uint64) (Project, error) {
 	query := "SELECT id, title, description FROM projects WHERE id = ?;"
 	var project Project
@@ -378,13 +423,21 @@ func (db *Database) getProjectById(id uint64) (Project, error) {
 	if project.Completeness, err = db.getCompleteness(id); err != nil {
 		return Project{}, err
 	}
-	project.Sessions = []Session{}
+
+	var sInfo SessionsInfo
+	if sInfo, err = db.getProjectSessions(id); err != nil {
+		return Project{}, err
+	}
+	project.Sessions = sInfo.Sessions
+	project.DurationTotal = sInfo.DurationTotal
+	project.DurationMonth = sInfo.DurationMonth
+	project.DurationWeek = sInfo.DurationWeek
 
 	return project, nil
 }
 
 func (db *Database) getSummaryList() ([]Summary, error) {
-	var summaries []Summary
+	summaries := []Summary{}
 	rows, err := db.db.Query("SELECT id, title FROM projects;")
 	if err != nil {
 		return []Summary{}, err
@@ -425,7 +478,7 @@ func (db *Database) CreateTag(name string, color string) error {
 
 	var id uint64
 	row := db.db.QueryRow("SELECT id FROM tags WHERE name = ?;", name)
-	if err := row.Scan(id); err != nil {
+	if err := row.Scan(&id); err != nil {
 		return err
 	}
 
@@ -578,6 +631,26 @@ func (db *Database) notifyProject(id uint64) error {
 	return nil
 }
 
+func (db *Database) notifyTags(tags []uint64) error {
+	tagInfos := []Tag{}
+
+	for _, tagId := range tags {
+		if tagInfo, err := db.getTagById(tagId); err != nil {
+			return err
+		} else {
+			tagInfos = append(tagInfos, tagInfo)
+		}
+	}
+
+	db.notifyListeners(func(listener DatabaseEventListener) {
+		for _, tagInfo := range tagInfos {
+			listener.OnTagUpdate(tagInfo)
+		}
+	})
+
+	return nil
+}
+
 func (db *Database) EditProject(
 	id uint64,
 	title, description string,
@@ -624,25 +697,12 @@ func (db *Database) EditProject(
 		}
 	}
 
-	modifiedTags := append(removedTags, newTags...)
-	modTagInfos := []Tag{}
-
-	for _, tagId := range modifiedTags {
-		if tagInfo, err := db.getTagById(tagId); err != nil {
-			return err
-		} else {
-			modTagInfos = append(modTagInfos, tagInfo)
-		}
+	if err = db.notifyProject(id); err != nil {
+		return err
 	}
 
-	// Tall all the connected frontends
-	db.notifyListeners(func(listener DatabaseEventListener) {
-		for _, tagInfo := range modTagInfos {
-			listener.OnTagUpdate(tagInfo)
-		}
-	})
-
-	return db.notifyProject(id)
+	modifiedTags := append(removedTags, newTags...)
+	return db.notifyTags(modifiedTags)
 }
 
 func (db *Database) AddTask(projectId uint64, taskDescription string) error {
@@ -720,6 +780,27 @@ func (db *Database) EditTask(id uint64, description string) error {
 	}
 
 	return db.notifyProject(projectId)
+}
+
+func (db *Database) AddSession(projectId, duration, date uint64) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	query := "INSERT INTO sessions (projectId, timestamp, duration) VALUES (?, ?, ?)"
+	_, err := db.db.Exec(query, projectId, date, duration)
+	if err != nil {
+		return fmt.Errorf("Unable to create project: %s", err.Error())
+	}
+
+	var tagIds []uint64
+	if tagIds, err = db.getTagIds(projectId); err != nil {
+		return err
+	}
+
+	if err := db.notifyProject(projectId); err != nil {
+		return err
+	}
+	return db.notifyTags(tagIds)
 }
 
 func NewDatabase(dbDir string) (*Database, error) {
