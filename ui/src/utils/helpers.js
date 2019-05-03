@@ -61,3 +61,10 @@ export function minutesToString(minutes) {
   }
   return str;
 }
+
+//------------------------------------------------------------------------------
+// Check if list contains element
+//------------------------------------------------------------------------------
+export function contains(elem, list) {
+  return list.indexOf(elem) > -1;
+}

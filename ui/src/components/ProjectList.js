@@ -15,6 +15,7 @@ import { BACKEND_OPENED } from '../actions/backend';
 import TagPicker from './TagPicker';
 import ItemAddModal from './ItemAddModal';
 import { projectNew } from '../utils/backendActions';
+import { contains } from '../utils/helpers';
 
 const styles = {
   progress: {
@@ -33,6 +34,16 @@ const styles = {
 // Project list
 //------------------------------------------------------------------------------
 class ProjectList extends Component {
+  //----------------------------------------------------------------------------
+  // The state
+  //----------------------------------------------------------------------------
+  state = {
+    selectedTags: []
+  }
+
+  //----------------------------------------------------------------------------
+  // Helpers
+  //----------------------------------------------------------------------------
   addProject = name => {
     projectNew(name)
       .catch(error => {
@@ -44,7 +55,29 @@ class ProjectList extends Component {
     this.addDialog.show();
   }
 
+  //----------------------------------------------------------------------------
+  // Render
+  //----------------------------------------------------------------------------
   render() {
+    //--------------------------------------------------------------------------
+    // Select records to render
+    //--------------------------------------------------------------------------
+    const selectedArchived = contains(0, this.state.selectedTags);
+    const summaries = this.props.summaries.filter(elem => {
+      if (!selectedArchived && contains(0, elem.tagIds)) {
+        return false;
+      }
+      for (var i = 0; i < this.state.selectedTags.length; i++) {
+        if (!contains(this.state.selectedTags[i], elem.tagIds)) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    //--------------------------------------------------------------------------
+    // Render components
+    //--------------------------------------------------------------------------
     const columns = [{
       dataIndex: 'key',
       render: (_, record) => (
@@ -68,7 +101,7 @@ class ProjectList extends Component {
       <Table
         showHeader={false}
         columns={columns}
-        dataSource={this.props.summaries}
+        dataSource={summaries}
         size='small'
         pagination={false}
         />
@@ -91,7 +124,10 @@ class ProjectList extends Component {
             <Icon type='plus' /> Add project
           </Button>
         </div>
-        <TagPicker/>
+        <TagPicker
+          value={this.state.selectedTags}
+          onChange={event => this.setState({selectedTags: event})}
+        />
         <div style={{marginTop: '1em'}}>
           {list}
         </div>
@@ -114,6 +150,7 @@ function mapStateToProps(state, ownProps) {
           tags: obj.tags
             .map(key => state.tags[key])
             .sort(sortBy('name')),
+          tagIds: obj.tags,
           progress: obj.completeness
         };
       });
