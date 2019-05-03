@@ -90,3 +90,10 @@ export function sessionNew(projectId, duration, date) {
     sessionNewParams: {projectId, duration, date}
   });
 }
+
+export function sessionDelete(id) {
+  return backend.sendMessage({
+    action: 'SESSION_DELETE',
+    sessionDeleteParams: id
+  });
+}

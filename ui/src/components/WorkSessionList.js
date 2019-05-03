@@ -6,13 +6,13 @@
 //------------------------------------------------------------------------------
 
 import React, { Component } from 'react';
-import { Button, Table, message } from 'antd';
+import { Button, Table, message, Popconfirm } from 'antd';
 import { connect } from 'react-redux';
 import moment from 'moment';
 import sortBy from 'sort-by';
 
 import SessionAddModal from './SessionAddModal';
-import { sessionNew } from '../utils/backendActions';
+import { sessionNew, sessionDelete } from '../utils/backendActions';
 import { BACKEND_OPENED } from '../actions/backend';
 import { minutesToString } from '../utils/helpers';
 
@@ -44,6 +44,11 @@ class WorkSessionList extends Component {
       .catch(error => message.error(error.message));
   }
 
+  deleteSession = id => {
+    sessionDelete(id)
+      .catch(error => message.error(error.message));
+  }
+
   showAddDialog = () => {
     this.addDialog.show();
   }
@@ -52,6 +57,24 @@ class WorkSessionList extends Component {
   // Render
   //----------------------------------------------------------------------------
   render() {
+    const getDeleteButton = id => {
+      if (this.props.connected) {
+        return (
+          <Popconfirm
+            placement="topRight"
+            title={`Are you sure you want to delete this session`}
+            onConfirm={() => this.deleteSession(id)}
+            okText="Yes"
+            cancelText="No">
+            <Button icon='delete' disabled={false} />
+          </Popconfirm>
+        );
+      }
+      return (
+        <Button icon='delete' disabled={true} />
+      );
+    };
+
     const sessionColumns = [{
       dataIndex: 'id',
       render: (_, record) => (
@@ -64,7 +87,7 @@ class WorkSessionList extends Component {
             on {moment(record.date*1000).format('dddd, MMMM Do, YYYY')}.
             <div style={{float: 'right'}}>
               <Button.Group size="small">
-                <Button icon='delete' disabled={!this.props.connected} />
+                {getDeleteButton(record.id)}
               </Button.Group>
             </div>
           </div>
