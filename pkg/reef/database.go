@@ -221,21 +221,51 @@ func (db *Database) notifyListeners(action func(DatabaseEventListener)) {
 	}
 }
 
+func (db *Database) getProjectsByTag(tagId uint64) ([]uint64, error) {
+	projectIds := []uint64{}
+	query := "SELECT projectId FROM projectTags WHERE tagId = ?;"
+	rows, err := db.db.Query(query, tagId)
+	if err != nil {
+		return []uint64{}, fmt.Errorf("Cannot query project ids: %s", err.Error())
+	}
+	for rows.Next() {
+		var projectId uint64
+		err := rows.Scan(&projectId)
+		if err != nil {
+			return []uint64{}, fmt.Errorf("Cannot scan project ids: %s", err.Error())
+		}
+		projectIds = append(projectIds, tagId)
+	}
+	if err := rows.Err(); err != nil {
+		return []uint64{}, fmt.Errorf("Cannot process project ids: %s", err.Error())
+	}
+	return projectIds, nil
+}
+
 func (db *Database) getTagById(id uint64) (Tag, error) {
 	query := "SELECT id, name, color FROM tags WHERE id = ?;"
 	var tag Tag
 	err := db.db.QueryRow(query, id).Scan(&tag.Id, &tag.Name, &tag.Color)
 	if err != nil {
+		return Tag{}, fmt.Errorf("Cannot query tag: %s", err.Error())
+	}
+
+	var projectIds []uint64
+	if projectIds, err = db.getProjectsByTag(id); err != nil {
 		return Tag{}, err
 	}
 
-	query = "SELECT COUNT(*) FROM projectTags WHERE tagId = ?"
-	var projectCount uint32
-	err = db.db.QueryRow(query, id).Scan(&projectCount)
-	if err != nil {
-		return Tag{}, err
+	tag.NumberOfProjects = uint32(len(projectIds))
+
+	for _, projectId := range projectIds {
+		var sInfo SessionsInfo
+		if sInfo, err = db.getProjectSessions(projectId); err != nil {
+			return Tag{}, err
+		}
+		tag.DurationTotal += sInfo.DurationTotal
+		tag.DurationMonth += sInfo.DurationMonth
+		tag.DurationWeek += sInfo.DurationWeek
 	}
-	tag.NumberOfProjects = projectCount
 
 	return tag, nil
 }
