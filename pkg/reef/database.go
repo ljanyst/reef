@@ -234,7 +234,7 @@ func (db *Database) getProjectsByTag(tagId uint64) ([]uint64, error) {
 		if err != nil {
 			return []uint64{}, fmt.Errorf("Cannot scan project ids: %s", err.Error())
 		}
-		projectIds = append(projectIds, tagId)
+		projectIds = append(projectIds, projectId)
 	}
 	if err := rows.Err(); err != nil {
 		return []uint64{}, fmt.Errorf("Cannot process project ids: %s", err.Error())
@@ -402,7 +402,8 @@ func (db *Database) getProjectSessions(projectId uint64) (SessionsInfo, error) {
 	sInfo.Sessions = []Session{}
 	monthAgo := time.Now().AddDate(0, -1, 0)
 	weekAgo := time.Now().AddDate(0, 0, -7)
-	rows, err := db.db.Query("SELECT id, timestamp, duration FROM sessions")
+	query := "SELECT id, timestamp, duration FROM sessions WHERE projectId = ?"
+	rows, err := db.db.Query(query, projectId)
 	if err != nil {
 		return SessionsInfo{}, fmt.Errorf("Can't get project sessions: %s", err.Error())
 	}
