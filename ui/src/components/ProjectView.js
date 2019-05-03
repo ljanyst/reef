@@ -11,6 +11,7 @@ import {
 } from 'antd';
 import { connect } from 'react-redux';
 import { withRouter } from 'react-router';
+import showdown from 'showdown';
 
 import TaskList from './TaskList';
 import WorkSessionList from './WorkSessionList';
@@ -269,7 +270,11 @@ class ProjectView extends Component {
     //--------------------------------------------------------------------------
     // Description
     //--------------------------------------------------------------------------
-    var description = this.props.description;
+    var converter = new showdown.Converter();
+    const markdown = converter.makeHtml(this.props.description);
+    var description = (
+      <div dangerouslySetInnerHTML={{__html:markdown}} />
+    );
     if (this.state.edit) {
       description = (
         <TextArea
