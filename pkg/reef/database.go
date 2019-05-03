@@ -682,6 +682,19 @@ func (db *Database) notifyTags(tags []uint64) error {
 	return nil
 }
 
+func (db *Database) notifyProjectAndTags(projectId uint64) error {
+	var tagIds []uint64
+	var err error
+	if tagIds, err = db.getTagIds(projectId); err != nil {
+		return err
+	}
+
+	if err := db.notifyProject(projectId); err != nil {
+		return err
+	}
+	return db.notifyTags(tagIds)
+}
+
 func (db *Database) EditProject(
 	id uint64,
 	title, description string,
@@ -762,7 +775,7 @@ func (db *Database) DeleteTask(id uint64) error {
 
 	query = "DELETE FROM tasks WHERE id = ?"
 	if _, err := db.db.Exec(query, id); err != nil {
-		return err
+		return fmt.Errorf("Unable to delete task: %s", err.Error())
 	}
 
 	return db.notifyProject(projectId)
@@ -775,7 +788,7 @@ func (db *Database) ToggleTask(id uint64) error {
 	query := "SELECT projectId FROM tasks WHERE id = ?"
 	var projectId uint64
 	if err := db.db.QueryRow(query, id).Scan(&projectId); err != nil {
-		return err
+		return fmt.Errorf("Unable to get project id for task %s", err.Error())
 	}
 
 	query = "SELECT done FROM tasks WHERE id = ?"
@@ -823,15 +836,25 @@ func (db *Database) AddSession(projectId, duration, date uint64) error {
 		return fmt.Errorf("Unable to create project: %s", err.Error())
 	}
 
-	var tagIds []uint64
-	if tagIds, err = db.getTagIds(projectId); err != nil {
-		return err
+	return db.notifyProjectAndTags(projectId)
+}
+
+func (db *Database) DeleteSession(id uint64) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	query := "SELECT projectId FROM sessions WHERE id = ?"
+	var projectId uint64
+	if err := db.db.QueryRow(query, id).Scan(&projectId); err != nil {
+		return fmt.Errorf("Unable to get project id for session %s", err.Error())
 	}
 
-	if err := db.notifyProject(projectId); err != nil {
-		return err
+	query = "DELETE FROM sessions WHERE id = ?"
+	if _, err := db.db.Exec(query, id); err != nil {
+		return fmt.Errorf("Unable to delete session: %s", err.Error())
 	}
-	return db.notifyTags(tagIds)
+
+	return db.notifyProjectAndTags(projectId)
 }
 
 func NewDatabase(dbDir string) (*Database, error) {
