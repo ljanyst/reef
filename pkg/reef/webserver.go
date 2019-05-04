@@ -12,8 +12,10 @@ package reef
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/foomo/htpasswd"
 	"github.com/gorilla/websocket"
@@ -21,17 +23,49 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// equalASCIIFold returns true if s is equal to t with ASCII case folding as
+// defined in RFC 4790 - this comes from "github.com/gorilla/websocket"
+func equalASCIIFold(s, t string) bool {
+	for s != "" && t != "" {
+		sr, size := utf8.DecodeRuneInString(s)
+		s = s[size:]
+		tr, size := utf8.DecodeRuneInString(t)
+		t = t[size:]
+		if sr == tr {
+			continue
+		}
+		if 'A' <= sr && sr <= 'Z' {
+			sr = sr + 'a' - 'A'
+		}
+		if 'A' <= tr && tr <= 'Z' {
+			tr = tr + 'a' - 'A'
+		}
+		if sr != tr {
+			return false
+		}
+	}
+	return s == t
+}
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		if strings.HasPrefix(r.RemoteAddr, "127.0.0.1") {
+		origin := r.Header["Origin"]
+		if len(origin) == 0 {
 			return true
 		}
-		if strings.HasPrefix(r.RemoteAddr, "[::1]") {
+
+		u, err := url.Parse(origin[0])
+		if err != nil {
+			return false
+		}
+
+		if strings.HasPrefix(u.Host, "localhost") {
 			return true
 		}
-		return false
+
+		return equalASCIIFold(u.Host, r.Host)
 	},
 }
 
