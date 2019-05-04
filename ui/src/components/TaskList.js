@@ -10,6 +10,7 @@ import {
   Button, Icon, Progress, Table, message, Popconfirm, Input
 } from 'antd';
 import { connect } from 'react-redux';
+import showdown from 'showdown';
 
 import { BACKEND_OPENED } from '../actions/backend';
 import ItemAddModal from './ItemAddModal';
@@ -21,12 +22,6 @@ import {
 // Styles
 //------------------------------------------------------------------------------
 const styles = {
-  descDone: {
-    color: '#ddd'
-  },
-  descNotDone: {
-    color: `#000`
-  },
   taskEdit: {
     width: '80%',
     display: 'inline-block'
@@ -83,6 +78,8 @@ class TaskList extends Component {
   // Render
   //----------------------------------------------------------------------------
   render() {
+    var converter = new showdown.Converter();
+
     const getDeleteButton = id => {
       if (this.props.connected) {
         return (
@@ -149,10 +146,11 @@ class TaskList extends Component {
           </div>
         );
       }
+      const markdown = converter.makeHtml(record.description);
       return (
-        <span style={record.done ? styles.descDone : styles.descNotDone}>
-          {record.description}
-        </span>
+        <div
+          className={record.done ? 'taskMarkdownDone' : 'taskMarkdownNotDone'}
+          dangerouslySetInnerHTML={{__html:markdown}} />
       );
     };
 
