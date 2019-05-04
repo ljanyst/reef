@@ -62,9 +62,9 @@ class ProjectList extends Component {
     //--------------------------------------------------------------------------
     // Select records to render
     //--------------------------------------------------------------------------
-    const selectedArchived = contains(0, this.state.selectedTags);
+    const selectedArchived = contains(1, this.state.selectedTags);
     const summaries = this.props.summaries.filter(elem => {
-      if (!selectedArchived && contains(0, elem.tagIds)) {
+      if (!selectedArchived && contains(1, elem.tagIds)) {
         return false;
       }
       for (var i = 0; i < this.state.selectedTags.length; i++) {
