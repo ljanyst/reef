@@ -109,7 +109,7 @@ func (db *Database) initializeNew() error {
 		ErrorMsg string
 	}{
 		{
-			"INSERT INTO metadata (key, value) VALUES (\"version\", \"1\");",
+			`INSERT INTO metadata (key, value) VALUES ("version", "1");`,
 			"Unable to set the database version",
 		},
 		{
@@ -120,8 +120,8 @@ func (db *Database) initializeNew() error {
 			"Unable to create the tags table",
 		},
 		{
-			"INSERT INTO tags (id, name, color) " +
-				"VALUES (0, \"Archived\", \"#adadad\");",
+			"INSERT INTO tags (name, color) " +
+				`VALUES ("Archived", "#adadad");`,
 			"Unable to create the archived tag",
 		},
 		{
@@ -527,7 +527,7 @@ func (db *Database) DeleteTag(id uint64) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
-	if id == 0 {
+	if id == 1 {
 		return fmt.Errorf("Cannot delete 'Archived'")
 	}
 
@@ -544,7 +544,7 @@ func (db *Database) EditTag(id uint64, newName, newColor string) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
-	if id == 0 {
+	if id == 1 {
 		return fmt.Errorf("Cannot edit 'Archived'")
 	}
 
