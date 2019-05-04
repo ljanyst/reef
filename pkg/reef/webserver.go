@@ -28,6 +28,9 @@ var upgrader = websocket.Upgrader{
 		if strings.HasPrefix(r.RemoteAddr, "127.0.0.1") {
 			return true
 		}
+		if strings.HasPrefix(r.RemoteAddr, "[::1]") {
+			return true
+		}
 		return false
 	},
 }
