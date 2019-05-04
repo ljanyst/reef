@@ -15,8 +15,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/foomo/htpasswd"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var upgrader = websocket.Upgrader{
@@ -53,14 +55,70 @@ func NewWebSocketHandler(opts BackendOpts) (WebSocketHandler, error) {
 	return webSocketHandler, err
 }
 
+type BasicAuthHandler struct {
+	userMap        map[string]string
+	wrappedHandler http.Handler
+}
+
+func (handler BasicAuthHandler) writeUnauthorized(w http.ResponseWriter) {
+	w.Header().Set("WWW-Authenticate", `Basic realm="Reef"`)
+	w.WriteHeader(401)
+	w.Write([]byte("Unauthorised.\n"))
+}
+
+func (handler BasicAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	user, pass, ok := r.BasicAuth()
+	if !ok {
+		handler.writeUnauthorized(w)
+		return
+	}
+
+	knownPass, ok := handler.userMap[user]
+	if !ok {
+		handler.writeUnauthorized(w)
+		return
+	}
+
+	err := bcrypt.CompareHashAndPassword([]byte(knownPass), []byte(pass))
+	if err != nil {
+		handler.writeUnauthorized(w)
+		return
+	}
+
+	handler.wrappedHandler.ServeHTTP(w, r)
+}
+
+func NewBasicAuthHandler(userMap map[string]string, handler http.Handler) BasicAuthHandler {
+	var h BasicAuthHandler
+	h.wrappedHandler = handler
+	h.userMap = userMap
+	return h
+}
+
 func RunWebServer(opts *ReefOpts) {
 	ui := http.FileServer(Assets)
 	webSocketHandler, err := NewWebSocketHandler(opts.Backend)
 	if err != nil {
-		log.Fatal("Unable to initialize the database: ", err)
+		log.Fatal("Unable to initialize the web socket handler: ", err)
 	}
-	http.Handle("/", ui)
-	http.Handle("/ws", webSocketHandler)
+
+	if opts.Web.EnableAuth {
+		authFile := opts.Web.HtpasswdFile
+		passwords, err := htpasswd.ParseHtpasswdFile(authFile)
+		if err != nil {
+			log.Fatal(`Authentication enabled but cannot open htpassword file "%s": %s`,
+				authFile, err)
+		}
+
+		log.Infof("Loaded authentication data from: %s", authFile)
+
+		http.Handle("/", NewBasicAuthHandler(passwords, ui))
+		http.Handle("/ws", NewBasicAuthHandler(passwords, webSocketHandler))
+
+	} else {
+		http.Handle("/", ui)
+		http.Handle("/ws", webSocketHandler)
+	}
 
 	var wg sync.WaitGroup
 	wg.Add(len(opts.Web.BindAddresses))

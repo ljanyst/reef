@@ -28,6 +28,8 @@ type HttpsOpts struct {
 type WebOpts struct {
 	BindAddresses []BindAddress // List of addresses the server should bind to
 	Https         HttpsOpts     // Https configuration
+	EnableAuth    bool          // Enable basic HTTP auth
+	HtpasswdFile  string        // path to the htpasswd file
 }
 
 type BackendOpts struct {
@@ -43,6 +45,7 @@ type ReefOpts struct {
 func NewReefOpts() (opts *ReefOpts) {
 	opts = new(ReefOpts)
 	opts.Web.BindAddresses = []BindAddress{BindAddress{"localhost", 7651, false}}
+	opts.Web.EnableAuth = false
 	opts.Backend.DatabaseDirectory = "data"
 	return
 }
