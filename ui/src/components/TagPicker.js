@@ -11,10 +11,23 @@ import { connect } from 'react-redux';
 import sortBy from 'sort-by';
 import PropTypes from 'prop-types';
 
+//------------------------------------------------------------------------------
+// Tab picker
+//------------------------------------------------------------------------------
 class TagPicker extends Component {
   static propTypes = {
     value: PropTypes.arrayOf(PropTypes.number),
     onChange: PropTypes.func
+  }
+
+  mapToIds = names => {
+    return names
+      .map(name => this.props.nameToId[name]);
+  }
+
+  mapToNames = ids => {
+    return ids
+      .map(id => this.props.idToName[id]);
   }
 
   constructor(props) {
@@ -27,7 +40,7 @@ class TagPicker extends Component {
   render() {
     const options = this.props.tags.map(
       tag =>
-        <Select.Option key={tag.key} value={tag.key} title={tag.name}>
+        <Select.Option key={tag.key} value={tag.name} title={tag.name}>
         <span style={{color: tag.color}}>{tag.name}</span>
         </Select.Option>
     );
@@ -38,14 +51,33 @@ class TagPicker extends Component {
           mode="multiple"
           style={{ width: '100%' }}
           placeholder="Select tags..."
-          value={this.props.value}
-          onChange={(event) => this.props.onChange(event)}
+          value={this.mapToNames(this.props.value)}
+          onChange={(event) => this.props.onChange(this.mapToIds(event))}
         >
           {options}
         </Select>
       </div>
     );
   }
+}
+
+//------------------------------------------------------------------------------
+// Swap keys with names
+//------------------------------------------------------------------------------
+function buildNameToId(input) {
+  var ret = {};
+  for(var key in input){
+    ret[input[key].name] = Number(key);
+  }
+  return ret;
+}
+
+function buildIdToName(input) {
+  var ret = {};
+  for(var key in input){
+    ret[Number(key)] = input[key].name;
+  }
+  return ret;
 }
 
 //------------------------------------------------------------------------------
@@ -63,8 +95,12 @@ function mapStateToProps(state, ownProps) {
         };
       });
 
+  let nameToId = buildNameToId(state.tags);
+  let idToName = buildIdToName(state.tags);
   return {
-    tags
+    tags,
+    nameToId,
+    idToName
   };
 }
 
