@@ -88,7 +88,8 @@ class TagEditorModal extends Component {
   //----------------------------------------------------------------------------
   show = (id, name, color) => {
     var state = {
-      visible: true
+      visible: true,
+      name: 'TagName'
     };
 
     if (color && isColorValid(color)) {

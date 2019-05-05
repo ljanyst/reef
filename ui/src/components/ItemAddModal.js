@@ -41,7 +41,10 @@ class ItemAddModal extends Component {
   // Modal manipulators
   //----------------------------------------------------------------------------
   show = () => {
-    this.setState({visible: true});
+    this.setState({
+      visible: true,
+      name: ''
+    });
   }
 
   handleOk = (e) => {
