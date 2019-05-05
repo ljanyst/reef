@@ -278,7 +278,7 @@ class ProjectView extends Component {
     if (this.state.edit) {
       description = (
         <TextArea
-          rows={5}
+          rows={15}
           value={this.state.description}
           onChange={(event) => this.setState({description: event.target.value})}
         />
