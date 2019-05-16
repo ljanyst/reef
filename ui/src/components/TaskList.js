@@ -74,6 +74,43 @@ class TaskList extends Component {
     this.addDialog.show();
   }
 
+  getTaskList = () => {
+    var taskMap = {};
+    var lstDone = [];
+    var lstNotDone = [];
+
+    for(let i = 0; i < this.props.tasks.length; ++i){
+      const task = this.props.tasks[i];
+      taskMap[task.id] = task;
+      if (task.done) {
+        lstDone.push(task.id);
+      } else {
+        lstNotDone.push(task.id);
+      }
+    }
+
+    if (!this.order || this.order.length !== this.props.tasks.length) {
+      lstDone = lstDone.sort((a, b) => a - b).reverse();
+      lstNotDone = lstNotDone.sort((a, b) => a - b).reverse();
+      this.order = lstNotDone.concat(lstDone);
+    }
+
+    var tasks = [];
+    for(let i = 0; i < this.order.length; ++i){
+      const id = this.order[i];
+      tasks.push(taskMap[id]);
+    }
+    return tasks;
+  }
+
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  constructor(props) {
+    super(props);
+    this.order = null;
+  }
+
   //----------------------------------------------------------------------------
   // Render
   //----------------------------------------------------------------------------
@@ -165,6 +202,8 @@ class TaskList extends Component {
         </div>)
     }];
 
+    const tasks = this.getTaskList();
+
     return (
       <div>
         <ItemAddModal
@@ -188,7 +227,7 @@ class TaskList extends Component {
           rowKey='id'
           showHeader={false}
           columns={taskColumns}
-          dataSource={this.props.tasks}
+          dataSource={tasks}
           size='small'
           pagination={false}
         />
