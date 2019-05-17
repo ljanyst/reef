@@ -562,11 +562,12 @@ func (db *Database) EditTag(id uint64, newName, newColor string) error {
 	return nil
 }
 
-func (db *Database) CreateProject(title string) error {
+func (db *Database) CreateProject(title, description string, tags []uint64) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
-	_, err := db.db.Exec("INSERT INTO projects (title, description) VALUES (?, ?);", title, "")
+	query := "INSERT INTO projects (title, description) VALUES (?, ?)"
+	_, err := db.db.Exec(query, title, description)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
 			return fmt.Errorf("Unable to create project: %s already exists", title)
@@ -574,11 +575,21 @@ func (db *Database) CreateProject(title string) error {
 		return fmt.Errorf("Unable to create project: %s", err.Error())
 	}
 
-	query := "SELECT id FROM projects WHERE title = ?"
+	query = "SELECT id FROM projects WHERE title = ?"
 	var id uint64
 	err = db.db.QueryRow(query, title).Scan(&id)
 	if err != nil {
 		return fmt.Errorf("Unable to query new project id: %s", err)
+	}
+
+	// Associate new tags
+	query = "INSERT OR IGNORE INTO projectTags (projectId, tagId) VALUES (?, ?);"
+	for _, tagId := range tags {
+		_, err := db.db.Exec(query, id, tagId)
+		if err != nil {
+			return fmt.Errorf("Unable to associate tag with project: (%d %d)",
+				id, tagId, err.Error())
+		}
 	}
 
 	summary, err := db.getSummaryById(id)
@@ -588,7 +599,8 @@ func (db *Database) CreateProject(title string) error {
 	db.notifyListeners(func(listener DatabaseEventListener) {
 		listener.OnSummaryUpdate(summary)
 	})
-	return nil
+
+	return db.notifyTags(tags)
 }
 
 func (db *Database) GetProject(id uint64, callback func(project Project)) error {

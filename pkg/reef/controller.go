@@ -22,7 +22,7 @@ type Request struct {
 	TagNewParams        TagNewParams      `json:"tagNewParams"`
 	TagDeleteParams     uint64            `json:"tagDeleteParams"`
 	TagEditParams       TagEditParams     `json:"tagEditParams"`
-	ProjectNewParams    string            `json:"projectNewParams"`
+	ProjectNewParams    ProjectNewParams  `json:"projectNewParams"`
 	ProjectGetParams    uint64            `json:"projectGetParams"`
 	ProjectDeleteParams uint64            `json:"projectDeleteParams"`
 	ProjectEditParams   ProjectEditParams `json:"projectEditParams"`
@@ -43,6 +43,12 @@ type TagEditParams struct {
 	Id       uint64 `json:"id"`
 	NewName  string `json:"newName"`
 	NewColor string `json:"newColor"`
+}
+
+type ProjectNewParams struct {
+	Name        string   `json:"name"`
+	Tags        []uint64 `json:"tags"`
+	Description string   `json:"description"`
 }
 
 type ProjectEditParams struct {
@@ -104,7 +110,8 @@ func (c *Controller) createCallMap() {
 	}
 
 	c.callMap["PROJECT_NEW"] = func(db *Database, req *Request) (bool, error) {
-		return true, db.CreateProject(req.ProjectNewParams)
+		p := req.ProjectNewParams
+		return true, db.CreateProject(p.Name, p.Description, p.Tags)
 	}
 
 	c.callMap["PROJECT_GET"] = func(db *Database, req *Request) (bool, error) {
