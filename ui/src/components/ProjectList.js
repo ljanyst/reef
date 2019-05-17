@@ -13,7 +13,7 @@ import sortBy from 'sort-by';
 
 import { BACKEND_OPENED } from '../actions/backend';
 import TagPicker from './TagPicker';
-import ItemAddModal from './ItemAddModal';
+import ProjectAddModal from './ProjectAddModal';
 import { projectNew } from '../utils/backendActions';
 import { contains } from '../utils/helpers';
 
@@ -44,8 +44,8 @@ class ProjectList extends Component {
   //----------------------------------------------------------------------------
   // Helpers
   //----------------------------------------------------------------------------
-  addProject = name => {
-    projectNew(name)
+  addProject = (name, tags, description) => {
+    projectNew(name, tags, description)
       .catch(error => {
         setTimeout(() => message.error(error.message), 500);
       });
@@ -110,7 +110,7 @@ class ProjectList extends Component {
     return (
       <div className='col-md-8 col-md-offset-2 app-container'>
         <h2>Projects</h2>
-        <ItemAddModal
+        <ProjectAddModal
           ref={(el) => { this.addDialog = el; }}
           onAdd={this.addProject}
           title='Add project'

@@ -28,10 +28,10 @@ export function tagEdit(id, newName, newColor) {
   });
 }
 
-export function projectNew(name) {
+export function projectNew(name, tags, description) {
   return backend.sendMessage({
     action: 'PROJECT_NEW',
-    projectNewParams: name
+    projectNewParams: {name, tags, description}
   });
 }
 

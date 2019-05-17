@@ -27,6 +27,11 @@ code {
     margin-top: 2em;
 }
 
+div.dialogItem {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
 div.taskMarkdownNotDone,
 div.taskMarkdownDone {
     display: inline-block;
