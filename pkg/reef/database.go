@@ -42,7 +42,9 @@ type Summary struct {
 type Task struct {
 	Id          uint64 `json:"id"`
 	ProjectId   uint64 `json:"projectId"`
+	Title       string `json:"title"`
 	Description string `json:"description"`
+	Priority    uint8  `json:"priority"`
 	Done        bool   `json:"done"`
 }
 
@@ -484,14 +486,14 @@ func (db *Database) getAllTagIds() ([]uint64, error) {
 
 func (db *Database) getTasks(id uint64) ([]Task, error) {
 	tasks := []Task{}
-	query := "SELECT id, done, title FROM tasks WHERE projectId = ?;"
+	query := "SELECT id, done, priority, title, description FROM tasks WHERE projectId = ?;"
 	rows, err := db.db.Query(query, id)
 	if err != nil {
 		return []Task{}, err
 	}
 	for rows.Next() {
 		var task Task
-		err := rows.Scan(&task.Id, &task.Done, &task.Description)
+		err := rows.Scan(&task.Id, &task.Done, &task.Priority, &task.Title, &task.Description)
 		if err != nil {
 			return []Task{}, err
 		}
@@ -894,13 +896,13 @@ func (db *Database) EditProject(
 	return db.notifyTags(modifiedTags)
 }
 
-func (db *Database) AddTask(projectId uint64, taskDescription string) error {
+func (db *Database) AddTask(projectId uint64, title, description string, priority uint64) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
-	query := "INSERT INTO tasks (projectId, done, description)" +
-		"VALUES (?, 0, ?);"
-	_, err := db.db.Exec(query, projectId, taskDescription)
+	query := "INSERT INTO tasks (projectId, done, priority, title, description)" +
+		"VALUES (?, 0, ?, ?, ?);"
+	_, err := db.db.Exec(query, projectId, priority, title, description)
 	if err != nil {
 		return fmt.Errorf("Unable add new task: %s", err.Error())
 	}
@@ -952,7 +954,7 @@ func (db *Database) ToggleTask(id uint64) error {
 	return db.notifyProject(projectId)
 }
 
-func (db *Database) EditTask(id uint64, description string) error {
+func (db *Database) EditTask(id uint64, title, description string, priority uint64) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
@@ -962,8 +964,8 @@ func (db *Database) EditTask(id uint64, description string) error {
 		return fmt.Errorf("Unable get projectId for task: %s", err.Error())
 	}
 
-	query = "UPDATE tasks SET description=? WHERE id=?"
-	_, err := db.db.Exec(query, description, id)
+	query = "UPDATE tasks SET title=?, description=?, priority=? WHERE id=?"
+	_, err := db.db.Exec(query, title, description, priority, id)
 	if err != nil {
 		return fmt.Errorf("Unable set task description: %s", err.Error())
 	}

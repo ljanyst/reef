@@ -59,13 +59,17 @@ type ProjectEditParams struct {
 }
 
 type TaskNewParams struct {
-	ProjectId       uint64 `json:"projectId"`
-	TaskDescription string `json:"taskDescription"`
+	ProjectId   uint64 `json:"projectId"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Priority    uint64 `json:"priority"`
 }
 
 type TaskEditParams struct {
-	TaskId          uint64 `json:"taskId"`
-	TaskDescription string `json:"taskDescription"`
+	TaskId      uint64 `json:"taskId"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Priority    uint64 `json:"priority"`
 }
 
 type SessionNewParams struct {
@@ -133,7 +137,7 @@ func (c *Controller) createCallMap() {
 
 	c.callMap["TASK_NEW"] = func(db *Database, req *Request) (bool, error) {
 		p := req.TaskNewParams
-		return true, db.AddTask(p.ProjectId, p.TaskDescription)
+		return true, db.AddTask(p.ProjectId, p.Title, p.Description, p.Priority)
 	}
 
 	c.callMap["TASK_DELETE"] = func(db *Database, req *Request) (bool, error) {
@@ -146,7 +150,7 @@ func (c *Controller) createCallMap() {
 
 	c.callMap["TASK_EDIT"] = func(db *Database, req *Request) (bool, error) {
 		p := req.TaskEditParams
-		return true, db.EditTask(p.TaskId, p.TaskDescription)
+		return true, db.EditTask(p.TaskId, p.Title, p.Description, p.Priority)
 	}
 
 	c.callMap["SESSION_NEW"] = func(db *Database, req *Request) (bool, error) {
