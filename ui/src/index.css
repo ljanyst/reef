@@ -43,11 +43,15 @@ div.taskMarkdownNotDone p {
 }
 
 div.taskMarkdownDone p {
-    margin: 0;
+    margin-bottom: 0;
     color: #ddd;
 }
 
 div.taskMarkdownDone a {
-    margin: 0;
     color: #8fcddd;
+}
+
+.taskIcon {
+    margin-right: 0.5em;
+    display: inline-block;
 }

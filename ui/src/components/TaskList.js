@@ -7,26 +7,16 @@
 
 import React, { Component } from 'react';
 import {
-  Button, Icon, Progress, Table, message, Popconfirm, Input
+  Button, Icon, Progress, Table, message, Popconfirm
 } from 'antd';
 import { connect } from 'react-redux';
 import showdown from 'showdown';
 
 import { BACKEND_OPENED } from '../actions/backend';
-import ItemAddModal from './ItemAddModal';
+import TaskEditModal from './TaskEditModal';
 import {
   taskNew, taskDelete, taskToggle, taskEdit
 } from '../utils/backendActions';
-
-//------------------------------------------------------------------------------
-// Styles
-//------------------------------------------------------------------------------
-const styles = {
-  taskEdit: {
-    width: '80%',
-    display: 'inline-block'
-  }
-};
 
 //------------------------------------------------------------------------------
 // Task list
@@ -42,8 +32,9 @@ class TaskList extends Component {
   //----------------------------------------------------------------------------
   // Helpers
   //----------------------------------------------------------------------------
-  addTask = description => {
-    taskNew(this.props.id, description)
+  addTask = (taskId, title, description, priority) => {
+    console.log(taskId, title, description, priority);
+    taskNew(this.props.id, title, description, priority)
       .catch(error => {
         setTimeout(() => message.error(error.message), 500);
       });
@@ -63,8 +54,8 @@ class TaskList extends Component {
       });
   }
 
-  editTask = (id, description) => {
-    taskEdit(id, description)
+  editTask = (id, title, description, priority) => {
+    taskEdit(id, title, description, priority)
       .catch(error => {
         setTimeout(() => message.error(error.message), 500);
       });
@@ -76,23 +67,24 @@ class TaskList extends Component {
 
   getTaskList = () => {
     var taskMap = {};
-    var lstDone = [];
-    var lstNotDone = [];
+
+    if (!this.order || this.order.length !== this.props.tasks.length) {
+      const comparator = (a, b) => {
+        if (a.done !== b.done) {
+          return (+a.done) - (+b.done);
+        }
+        if (a.priority !== b.priority) {
+          return b.priority - a.priority;
+        }
+        return b.id - a.id;
+      };
+      let tasks = this.props.tasks.sort(comparator);
+      this.order = tasks.map(task => task.id);
+    }
 
     for(let i = 0; i < this.props.tasks.length; ++i){
       const task = this.props.tasks[i];
       taskMap[task.id] = task;
-      if (task.done) {
-        lstDone.push(task.id);
-      } else {
-        lstNotDone.push(task.id);
-      }
-    }
-
-    if (!this.order || this.order.length !== this.props.tasks.length) {
-      lstDone = lstDone.sort((a, b) => a - b).reverse();
-      lstNotDone = lstNotDone.sort((a, b) => a - b).reverse();
-      this.order = lstNotDone.concat(lstDone);
     }
 
     var tasks = [];
@@ -136,21 +128,6 @@ class TaskList extends Component {
     };
 
     const taskButtons = record => {
-      if (this.state.edit === record.id) {
-        return (
-          <Button.Group size="small">
-            <Button
-              icon='save'
-              disabled={!this.props.connected}
-              onClick={() => {
-                this.editTask(record.id, this.state.description);
-                this.setState({edit: null});
-              }}>
-              Save
-            </Button>
-          </Button.Group>
-        );
-      }
       return (
         <Button.Group size="small">
           <Button
@@ -161,57 +138,93 @@ class TaskList extends Component {
           <Button
             icon='edit'
             disabled={!this.props.connected}
-            onClick={() => this.setState({
-              edit: record.id,
-              description: record.description
-            })}
+            onClick={() => this.editDialog.show(
+              record.id, record.title, record.description, record.priority)
+            }
           />
           {getDeleteButton(record.id)}
         </Button.Group>
       );
     };
 
-    const getDescription = record => {
-      if (this.state.edit === record.id) {
+    const getPriorityIcon = record => {
+      if (record.priority === 0) {
         return (
-          <div style={styles.taskEdit} >
-            <Input
-              size="small"
-              value={this.state.description}
-              onChange={(event) => this.setState({description: event.target.value})}
+          <div className='taskIcon'>
+            <Icon
+              type='meh'
+              theme="twoTone"
+              twoToneColor={record.done ? '#ddd' : '#3cb371'}
+            />
+          </div>
+        );
+      } else if (record.priority === 2) {
+        return (
+          <div className='taskIcon'>
+            <Icon
+              type='fire'
+              theme="twoTone"
+              twoToneColor={record.done ? '#ddd' : '#eb2f96'}
+            />
+          </div>
+        );
+      } else {
+        return (
+          <div className='taskIcon'>
+            <Icon
+              type='bulb'
+              theme="twoTone"
+              twoToneColor={record.done ? '#ddd' : '#ffa500'}
             />
           </div>
         );
       }
-      const markdown = converter.makeHtml(record.description);
-      return (
-        <div
-          className={record.done ? 'taskMarkdownDone' : 'taskMarkdownNotDone'}
-          dangerouslySetInnerHTML={{__html:markdown}} />
-      );
+    };
+
+    const getTaskDescription = record => {
+      if (record.description !== "") {
+        const markdown = converter.makeHtml(record.description);
+        return (
+          <div
+            className={record.done ? 'taskMarkdownDone' : 'taskMarkdownNotDone'}
+            dangerouslySetInnerHTML={{__html:markdown}} />
+        );
+      }
+      return (<div>No description</div>);
     };
 
     const taskColumns = [{
       dataIndex: 'id',
-      render: (_, record) => (
-        <div>
-          {getDescription(record)}
-          <div style={{float: 'right'}}>
+      render: (_, record) => {
+        const markdown = converter.makeHtml(record.title);
+        return (
+          <div>
+            {getPriorityIcon(record)}
+            <div
+              className={record.done ? 'taskMarkdownDone' : 'taskMarkdownNotDone'}
+              dangerouslySetInnerHTML={{__html:markdown}} />
+            <div style={{float: 'right'}}>
               {taskButtons(record)}
+            </div>
           </div>
-        </div>)
+        );
+      }
     }];
 
     const tasks = this.getTaskList();
 
     return (
       <div>
-        <ItemAddModal
+        <TaskEditModal
           ref={(el) => { this.addDialog = el; }}
-          onAdd={this.addTask}
-          title='Add task'
-          label='Task title'
-          />
+          onEdit={this.addTask}
+          windowTitle='Add task'
+        />
+        <TaskEditModal
+          ref={(el) => { this.editDialog = el; }}
+          onEdit={this.editTask}
+          windowTitle='Edit task'
+        />
         <div className='control-button-container'>
           <Button
             onClick={this.showAddDialog}
@@ -230,6 +243,7 @@ class TaskList extends Component {
           dataSource={tasks}
           size='small'
           pagination={false}
+          expandedRowRender={getTaskDescription}
         />
       </div>
     );

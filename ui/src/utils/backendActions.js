@@ -56,10 +56,10 @@ export function projectEdit(id, title, description, tags) {
   });
 }
 
-export function taskNew(projectId, taskDescription) {
+export function taskNew(projectId, title, description, priority) {
   return backend.sendMessage({
     action: 'TASK_NEW',
-    taskNewParams: {projectId, taskDescription}
+    taskNewParams: {projectId, title, description, priority}
   });
 }
 
@@ -77,10 +77,10 @@ export function taskToggle(taskId) {
   });
 }
 
-export function taskEdit(taskId, taskDescription) {
+export function taskEdit(taskId, title, description, priority) {
   return backend.sendMessage({
     action: 'TASK_EDIT',
-    taskEditParams: {taskId, taskDescription}
+    taskEditParams: {taskId, title, description, priority}
   });
 }
 
