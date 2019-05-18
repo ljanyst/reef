@@ -10,8 +10,10 @@ package reef
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -103,13 +105,15 @@ func (db *Database) readMetadata() (md map[string]string, err error) {
 	return
 }
 
+type CommandEntry struct {
+	Query    string
+	ErrorMsg string
+}
+
 func (db *Database) initializeNew() error {
-	initializationQueries := []struct {
-		Query    string
-		ErrorMsg string
-	}{
+	initializationQueries := []CommandEntry{
 		{
-			`INSERT INTO metadata (key, value) VALUES ("version", "1");`,
+			`INSERT INTO metadata (key, value) VALUES ("version", "2");`,
 			"Unable to set the database version",
 		},
 		{
@@ -145,6 +149,8 @@ func (db *Database) initializeNew() error {
 				"id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, " +
 				"projectId INTEGER NOT NULL, " +
 				"done BOOLEAN NOT NULL, " +
+				"priority INTEGER NOT NULL, " +
+				"title STRING NOT NULL," +
 				"description STRING NOT NULL," +
 				"FOREIGN KEY(projectId) REFERENCES projects(id));",
 			"Unable to create the tasks table",
@@ -160,16 +166,124 @@ func (db *Database) initializeNew() error {
 		},
 	}
 
-	for _, command := range initializationQueries {
-		_, err := db.db.Exec(command.Query)
+	return executeQueries(db.db, initializationQueries)
+}
+
+func upgradeFrom1To2(db *sql.DB) error {
+	log.Info("Upgrading database from version 1 to version 2")
+	queries := []CommandEntry{
+		{
+			"ALTER TABLE tasks RENAME TO _tasks_old;",
+			"Unable to rename tasks to _tasks_old",
+		},
+		{
+			"CREATE TABLE tasks (" +
+				"id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, " +
+				"projectId INTEGER NOT NULL, " +
+				"done BOOLEAN NOT NULL, " +
+				"priority INTEGER NOT NULL, " +
+				"title STRING NOT NULL," +
+				"description STRING NOT NULL," +
+				"FOREIGN KEY(projectId) REFERENCES projects(id));",
+			"Unable to create the new tasks table",
+		},
+		{
+			"INSERT INTO tasks (id, projectId, done, priority, title, description)" +
+				`SELECT id, projectId, done, 1, description, ""` +
+				"FROM _tasks_old;",
+			"Unable to copy the rows to the new tasks table",
+		},
+		{
+			"DROP TABLE _tasks_old;",
+			"Unable to drop the old tasks table",
+		},
+	}
+
+	return executeQueries(db, queries)
+}
+
+func executeQueries(db *sql.DB, queries []CommandEntry) error {
+	for _, command := range queries {
+		_, err := db.Exec(command.Query)
 		if err != nil {
 			return fmt.Errorf("%s: %s", command.ErrorMsg, err)
 		}
 	}
 	return nil
+
 }
 
-func (db *Database) initialize() (err error) {
+func getUpgraders() map[uint64]func(db *sql.DB) error {
+	upgraders := make(map[uint64]func(db *sql.DB) error)
+	upgraders[1] = upgradeFrom1To2
+	return upgraders
+}
+
+func copyFile(fromFn, toFn string) error {
+	from, err := os.Open(fromFn)
+	if err != nil {
+		return err
+	}
+	defer from.Close()
+
+	to, err := os.OpenFile(toFn, os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		return err
+	}
+	defer to.Close()
+
+	_, err = io.Copy(to, from)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (db *Database) upgrade(dbDir string, fileVersion, currentVersion uint64) error {
+	t := time.Now()
+	backupFileName := fmt.Sprintf("reef.db-%s-version-%d", t.Format("2006-01-02T15:04:05.999999"), fileVersion)
+	backupFileName = filepath.Join(dbDir, backupFileName)
+	dbFile := filepath.Join(dbDir, "reef.db")
+
+	err := copyFile(dbFile, backupFileName)
+	if err != nil {
+		log.Error("Unable to make a backup copy of reef.db: ", err)
+		return err
+	}
+
+	db.db, err = sql.Open("sqlite3", dbFile)
+	if err != nil {
+		return err
+	}
+
+	upgraders := getUpgraders()
+	for i := fileVersion; i < currentVersion; i++ {
+		upgrader, ok := upgraders[i]
+		if !ok {
+			return fmt.Errorf("Cannot find database upgrader from version %d to version %d", i, i+1)
+		}
+		if err = upgrader(db.db); err != nil {
+			return fmt.Errorf("Database upgrader from version %d to version %d failed: %s", i, i+1, err.Error())
+		}
+	}
+
+	_, err = db.db.Exec(`UPDATE metadata SET value=? WHERE key="version";`, strconv.FormatUint(2, 10))
+	if err != nil {
+		return fmt.Errorf("Unable to update version number in the database metadata")
+	}
+
+	return nil
+}
+
+func (db *Database) initialize(dbDir string) (err error) {
+	dbFile := filepath.Join(dbDir, "reef.db")
+	log.Infof("Using %s for database storage", dbFile)
+	db.db, err = sql.Open("sqlite3", dbFile)
+	if err != nil {
+		return
+	}
+
 	_, err = db.db.Exec("CREATE TABLE IF NOT EXISTS metadata (key STRING PRIMARY KEY, value STRING)")
 	md, err := db.readMetadata()
 	if err != nil {
@@ -177,15 +291,34 @@ func (db *Database) initialize() (err error) {
 		return
 	}
 
-	var version string
+	var fileVersionStr string
+	var fileVersion uint64
 	var ok bool
-	if version, ok = md["version"]; !ok {
+	if fileVersionStr, ok = md["version"]; !ok {
 		log.Info("Creating a new database")
 		err = db.initializeNew()
 		return
 	}
 
-	log.Info("Database version: ", version)
+	if fileVersion, err = strconv.ParseUint(fileVersionStr, 10, 64); err != nil {
+		log.Errorf("Unable to parse the version string: %s", err.Error())
+		return
+	}
+
+	log.Info("Database version: ", fileVersion)
+
+	const currentVersion = 2
+	if fileVersion != currentVersion {
+		if err = db.db.Close(); err != nil {
+			log.Error("Unable to close the database: ", err)
+			return
+		}
+
+		if err = db.upgrade(dbDir, fileVersion, currentVersion); err != nil {
+			log.Error("Unable to upgrade the database: ", err)
+			return
+		}
+	}
 	return
 }
 
@@ -197,7 +330,7 @@ func (db *Database) AddEventListener(listener DatabaseEventListener) {
 
 	tags, err := db.getTagList()
 	if err != nil {
-		log.Fatal("Eunable to get tags:", err)
+		log.Fatal("Eunable to get tags: ", err)
 	}
 	listener.OnTagList(tags)
 
@@ -351,7 +484,7 @@ func (db *Database) getAllTagIds() ([]uint64, error) {
 
 func (db *Database) getTasks(id uint64) ([]Task, error) {
 	tasks := []Task{}
-	query := "SELECT id, done, description FROM tasks WHERE projectId = ?;"
+	query := "SELECT id, done, title FROM tasks WHERE projectId = ?;"
 	rows, err := db.db.Query(query, id)
 	if err != nil {
 		return []Task{}, err
@@ -876,14 +1009,7 @@ func NewDatabase(dbDir string) (*Database, error) {
 		return nil, err
 	}
 
-	dbFile := filepath.Join(dbDir, "reef.db")
-	log.Infof("Using %s for database storage", dbFile)
-	db.db, err = sql.Open("sqlite3", dbFile)
-	if err != nil {
-		return nil, err
-	}
-
-	err = db.initialize()
+	err = db.initialize(dbDir)
 	if err != nil {
 		return nil, err
 	}
