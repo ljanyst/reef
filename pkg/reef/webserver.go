@@ -10,6 +10,7 @@
 package reef
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -70,7 +71,55 @@ var upgrader = websocket.Upgrader{
 }
 
 type WebSocketHandler struct {
-	db *Database
+	controller *Controller
+}
+
+func readMessages(conn *websocket.Conn, link *Link) {
+	for {
+		messageType, data, err := conn.ReadMessage()
+		if err != nil {
+			link.Close()
+			return
+		}
+
+		if messageType != websocket.TextMessage {
+			continue
+		}
+
+		var request Request
+		err = json.Unmarshal(data, &request)
+		if err != nil {
+			log.Error("Unable to unmarshal request: ", err)
+			continue
+		}
+
+		select {
+		case link.RequestChan <- request:
+		case <-link.CloseChan:
+			return
+		}
+	}
+
+}
+
+func writeMessages(conn *websocket.Conn, link *Link) {
+	for {
+		select {
+		case resp := <-link.ResponseChan:
+			data, err := json.Marshal(resp)
+			if err != nil {
+				log.Error("Unable to marshal response: ", err)
+				continue
+			}
+			err = conn.WriteMessage(websocket.TextMessage, data)
+			if err != nil {
+				link.Close()
+				return
+			}
+		case <-link.CloseChan:
+			return
+		}
+	}
 }
 
 func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -80,16 +129,16 @@ func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	controller := NewController(handler.db, conn)
-	controller.HandleConnection()
+	link := handler.controller.GetLink()
+
+	go readMessages(conn, link)
+	writeMessages(conn, link)
 }
 
-func NewWebSocketHandler(opts BackendOpts) (WebSocketHandler, error) {
+func NewWebSocketHandler(db *Database) WebSocketHandler {
 	var webSocketHandler WebSocketHandler
-	var err error
-
-	webSocketHandler.db, err = NewDatabase(opts.DatabaseDirectory)
-	return webSocketHandler, err
+	webSocketHandler.controller = NewController(db)
+	return webSocketHandler
 }
 
 type BasicAuthHandler struct {
@@ -133,12 +182,14 @@ func NewBasicAuthHandler(userMap map[string]string, handler http.Handler) BasicA
 }
 
 func RunWebServer(opts *ReefOpts) {
-	ui := http.FileServer(Assets)
-	webSocketHandler, err := NewWebSocketHandler(opts.Backend)
+	database, err := NewDatabase(opts.Backend.DatabaseDirectory)
 	if err != nil {
-		log.Fatal("Unable to initialize the web socket handler: ", err)
+		log.Fatal("Unable to initialize the database: ", err)
 	}
 
+	webSocketHandler := NewWebSocketHandler(database)
+
+	ui := http.FileServer(Assets)
 	if opts.Web.EnableAuth {
 		authFile := opts.Web.HtpasswdFile
 		passwords, err := htpasswd.ParseHtpasswdFile(authFile)

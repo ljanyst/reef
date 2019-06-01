@@ -15,73 +15,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
 )
 
-type Tag struct {
-	Id               uint64 `json:"id"`
-	Name             string `json:"name"`
-	Color            string `json:"color"`
-	DurationTotal    uint64 `json:"durationTotal"`
-	DurationMonth    uint64 `json:"durationMonth"`
-	DurationWeek     uint64 `json:"durationWeek"`
-	NumberOfProjects uint32 `json:"numProjects"`
-}
-
-type Summary struct {
-	Id           uint64   `json:"id"`
-	Title        string   `json:"title"`
-	Tags         []uint64 `json:"tags"`
-	Completeness float32  `json:"completeness"`
-}
-
-type Task struct {
-	Id          uint64 `json:"id"`
-	ProjectId   uint64 `json:"projectId"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Priority    uint8  `json:"priority"`
-	Done        bool   `json:"done"`
-}
-
-type Session struct {
-	Id       uint64 `json:"id"`
-	Duration uint64 `json:"duration"`
-	Date     uint64 `json:"date"`
-}
-
-type Project struct {
-	Id            uint64    `json:"id"`
-	Title         string    `json:"title"`
-	Description   string    `json:"description"`
-	Tags          []uint64  `json:"tags"`
-	DurationTotal uint64    `json:"durationTotal"`
-	DurationMonth uint64    `json:"durationMonth"`
-	DurationWeek  uint64    `json:"durationWeek"`
-	Completeness  float32   `json:"completeness"`
-	Tasks         []Task    `json:"tasks"`
-	Sessions      []Session `json:"sessions"`
-}
-
 type Database struct {
-	db        *sql.DB
-	mutex     sync.Mutex
-	listeners map[DatabaseEventListener]bool
-}
-
-type DatabaseEventListener interface {
-	OnTagUpdate(tag Tag)
-	OnTagDelete(id uint64)
-	OnTagList(tags []Tag)
-	OnTagEdit(id uint64, newName, newColor string)
-	OnSummaryUpdate(summary Summary)
-	OnSummaryList(summaries []Summary)
-	OnProjectDelete(id uint64)
-	OnProjectUpdate(project Project)
+	db *sql.DB
 }
 
 func (db *Database) readMetadata() (md map[string]string, err error) {
@@ -324,39 +265,7 @@ func (db *Database) initialize(dbDir string) (err error) {
 	return
 }
 
-func (db *Database) AddEventListener(listener DatabaseEventListener) {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
-	db.listeners[listener] = true
-
-	tags, err := db.getTagList()
-	if err != nil {
-		log.Fatal("Eunable to get tags: ", err)
-	}
-	listener.OnTagList(tags)
-
-	summaries, err := db.getSummaryList()
-	if err != nil {
-		log.Fatal("Eunable to get project summaries:", err)
-	}
-	listener.OnSummaryList(summaries)
-}
-
-func (db *Database) RemoveEventListener(listener DatabaseEventListener) {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
-	delete(db.listeners, listener)
-}
-
-func (db *Database) notifyListeners(action func(DatabaseEventListener)) {
-	for listener, _ := range db.listeners {
-		action(listener)
-	}
-}
-
-func (db *Database) getProjectsByTag(tagId uint64) ([]uint64, error) {
+func (db *Database) GetProjectsByTag(tagId uint64) ([]uint64, error) {
 	projectIds := []uint64{}
 	query := "SELECT projectId FROM projectTags WHERE tagId = ?;"
 	rows, err := db.db.Query(query, tagId)
@@ -377,7 +286,7 @@ func (db *Database) getProjectsByTag(tagId uint64) ([]uint64, error) {
 	return projectIds, nil
 }
 
-func (db *Database) getTagById(id uint64) (Tag, error) {
+func (db *Database) GetTagById(id uint64) (Tag, error) {
 	query := "SELECT id, name, color FROM tags WHERE id = ?;"
 	var tag Tag
 	err := db.db.QueryRow(query, id).Scan(&tag.Id, &tag.Name, &tag.Color)
@@ -386,7 +295,7 @@ func (db *Database) getTagById(id uint64) (Tag, error) {
 	}
 
 	var projectIds []uint64
-	if projectIds, err = db.getProjectsByTag(id); err != nil {
+	if projectIds, err = db.GetProjectsByTag(id); err != nil {
 		return Tag{}, err
 	}
 
@@ -394,7 +303,7 @@ func (db *Database) getTagById(id uint64) (Tag, error) {
 
 	for _, projectId := range projectIds {
 		var sInfo SessionsInfo
-		if sInfo, err = db.getProjectSessions(projectId); err != nil {
+		if sInfo, err = db.GetProjectSessions(projectId); err != nil {
 			return Tag{}, err
 		}
 		tag.DurationTotal += sInfo.DurationTotal
@@ -405,7 +314,7 @@ func (db *Database) getTagById(id uint64) (Tag, error) {
 	return tag, nil
 }
 
-func (db *Database) getSummaryById(id uint64) (Summary, error) {
+func (db *Database) GetSummaryById(id uint64) (Summary, error) {
 	query := "SELECT id, title FROM projects WHERE id = ?;"
 	var summary Summary
 	row := db.db.QueryRow(query, id)
@@ -414,26 +323,26 @@ func (db *Database) getSummaryById(id uint64) (Summary, error) {
 	}
 
 	var err error
-	if summary.Tags, err = db.getTagIds(id); err != nil {
+	if summary.Tags, err = db.GetTagIdsByProjectId(id); err != nil {
 		return Summary{}, err
 	}
 
-	if summary.Completeness, err = db.getCompleteness(id); err != nil {
+	if summary.Completeness, err = db.GetProjectCompleteness(id); err != nil {
 		return Summary{}, err
 	}
 
 	return summary, nil
 }
 
-func (db *Database) getTagList() ([]Tag, error) {
+func (db *Database) GetTagList() ([]Tag, error) {
 	var tags []Tag
-	tagIds, err := db.getAllTagIds()
+	tagIds, err := db.GetAllTagIds()
 	if err != nil {
 		return []Tag{}, err
 	}
 
 	for _, id := range tagIds {
-		if tag, err := db.getTagById(id); err != nil {
+		if tag, err := db.GetTagById(id); err != nil {
 			return []Tag{}, err
 		} else {
 			tags = append(tags, tag)
@@ -443,7 +352,7 @@ func (db *Database) getTagList() ([]Tag, error) {
 	return tags, nil
 }
 
-func (db *Database) getTagIds(id uint64) ([]uint64, error) {
+func (db *Database) GetTagIdsByProjectId(id uint64) ([]uint64, error) {
 	tagIds := []uint64{}
 	query := "SELECT tagId FROM projectTags WHERE projectId = ?;"
 	rows, err := db.db.Query(query, id)
@@ -464,7 +373,7 @@ func (db *Database) getTagIds(id uint64) ([]uint64, error) {
 	return tagIds, nil
 }
 
-func (db *Database) getAllTagIds() ([]uint64, error) {
+func (db *Database) GetAllTagIds() ([]uint64, error) {
 	tagIds := []uint64{}
 	rows, err := db.db.Query("SELECT id FROM tags;")
 	if err != nil {
@@ -484,7 +393,7 @@ func (db *Database) getAllTagIds() ([]uint64, error) {
 	return tagIds, nil
 }
 
-func (db *Database) getTasks(id uint64) ([]Task, error) {
+func (db *Database) GetProjectTasks(id uint64) ([]Task, error) {
 	tasks := []Task{}
 	query := "SELECT id, done, priority, title, description FROM tasks WHERE projectId = ?;"
 	rows, err := db.db.Query(query, id)
@@ -506,7 +415,7 @@ func (db *Database) getTasks(id uint64) ([]Task, error) {
 	return tasks, nil
 }
 
-func (db *Database) getCompleteness(id uint64) (float32, error) {
+func (db *Database) GetProjectCompleteness(id uint64) (float32, error) {
 	query := "SELECT COUNT(*) FROM tasks WHERE projectId = ?"
 	var all uint64
 	if err := db.db.QueryRow(query, id).Scan(&all); err != nil {
@@ -532,7 +441,7 @@ type SessionsInfo struct {
 	Sessions      []Session
 }
 
-func (db *Database) getProjectSessions(projectId uint64) (SessionsInfo, error) {
+func (db *Database) GetProjectSessions(projectId uint64) (SessionsInfo, error) {
 	var sInfo SessionsInfo
 	sInfo.Sessions = []Session{}
 	monthAgo := time.Now().AddDate(0, -1, 0)
@@ -570,7 +479,7 @@ func (db *Database) getProjectSessions(projectId uint64) (SessionsInfo, error) {
 	return sInfo, nil
 }
 
-func (db *Database) getProjectById(id uint64) (Project, error) {
+func (db *Database) GetProjectById(id uint64) (Project, error) {
 	query := "SELECT id, title, description FROM projects WHERE id = ?;"
 	var project Project
 	err := db.db.QueryRow(query, id).Scan(&project.Id, &project.Title, &project.Description)
@@ -578,20 +487,20 @@ func (db *Database) getProjectById(id uint64) (Project, error) {
 		return Project{}, err
 	}
 
-	if project.Tags, err = db.getTagIds(id); err != nil {
+	if project.Tags, err = db.GetTagIdsByProjectId(id); err != nil {
 		return Project{}, err
 	}
 
-	if project.Tasks, err = db.getTasks(id); err != nil {
+	if project.Tasks, err = db.GetProjectTasks(id); err != nil {
 		return Project{}, err
 	}
 
-	if project.Completeness, err = db.getCompleteness(id); err != nil {
+	if project.Completeness, err = db.GetProjectCompleteness(id); err != nil {
 		return Project{}, err
 	}
 
 	var sInfo SessionsInfo
-	if sInfo, err = db.getProjectSessions(id); err != nil {
+	if sInfo, err = db.GetProjectSessions(id); err != nil {
 		return Project{}, err
 	}
 	project.Sessions = sInfo.Sessions
@@ -602,7 +511,7 @@ func (db *Database) getProjectById(id uint64) (Project, error) {
 	return project, nil
 }
 
-func (db *Database) getSummaryList() ([]Summary, error) {
+func (db *Database) GetSummaryList() ([]Summary, error) {
 	summaries := []Summary{}
 	rows, err := db.db.Query("SELECT id, title FROM projects;")
 	if err != nil {
@@ -614,11 +523,11 @@ func (db *Database) getSummaryList() ([]Summary, error) {
 		if err != nil {
 			return []Summary{}, err
 		}
-		summary.Tags, err = db.getTagIds(summary.Id)
+		summary.Tags, err = db.GetTagIdsByProjectId(summary.Id)
 		if err != nil {
 			return []Summary{}, err
 		}
-		summary.Completeness, err = db.getCompleteness(summary.Id)
+		summary.Completeness, err = db.GetProjectCompleteness(summary.Id)
 		if err != nil {
 			return []Summary{}, err
 		}
@@ -630,38 +539,24 @@ func (db *Database) getSummaryList() ([]Summary, error) {
 	return summaries, nil
 }
 
-func (db *Database) CreateTag(name string, color string) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
+func (db *Database) CreateTag(name string, color string) (uint64, error) {
 	_, err := db.db.Exec("INSERT INTO tags (name, color) VALUES (?, ?);", name, color)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
-			return fmt.Errorf("Unable to insert tag: %s already exists", name)
+			return 0, fmt.Errorf("Unable to insert tag: %s already exists", name)
 		}
-		return fmt.Errorf("Unable to insert tag: %s", err.Error())
+		return 0, fmt.Errorf("Unable to insert tag: %s", err.Error())
 	}
 
 	var id uint64
 	row := db.db.QueryRow("SELECT id FROM tags WHERE name = ?;", name)
 	if err := row.Scan(&id); err != nil {
-		return err
+		return 0, err
 	}
-
-	tag, err := db.getTagById(id)
-	if err != nil {
-		return fmt.Errorf("Unable to query new tag \"%s\": %s", name, err)
-	}
-	db.notifyListeners(func(listener DatabaseEventListener) {
-		listener.OnTagUpdate(tag)
-	})
-	return nil
+	return id, nil
 }
 
 func (db *Database) DeleteTag(id uint64) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
 	if id == 1 {
 		return fmt.Errorf("Cannot delete 'Archived'")
 	}
@@ -670,15 +565,10 @@ func (db *Database) DeleteTag(id uint64) error {
 	if err != nil {
 		return fmt.Errorf("Unable to delete tag: %s", err.Error())
 	}
-
-	db.notifyListeners(func(listener DatabaseEventListener) { listener.OnTagDelete(id) })
 	return nil
 }
 
 func (db *Database) EditTag(id uint64, newName, newColor string) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
 	if id == 1 {
 		return fmt.Errorf("Cannot edit 'Archived'")
 	}
@@ -690,31 +580,24 @@ func (db *Database) EditTag(id uint64, newName, newColor string) error {
 		}
 		return fmt.Errorf("Unable to edit tag: %s", err.Error())
 	}
-
-	db.notifyListeners(func(listener DatabaseEventListener) {
-		listener.OnTagEdit(id, newName, newColor)
-	})
 	return nil
 }
 
-func (db *Database) CreateProject(title, description string, tags []uint64) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
+func (db *Database) CreateProject(title, description string, tags []uint64) (uint64, error) {
 	query := "INSERT INTO projects (title, description) VALUES (?, ?)"
 	_, err := db.db.Exec(query, title, description)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
-			return fmt.Errorf("Unable to create project: %s already exists", title)
+			return 0, fmt.Errorf("Unable to create project: %s already exists", title)
 		}
-		return fmt.Errorf("Unable to create project: %s", err.Error())
+		return 0, fmt.Errorf("Unable to create project: %s", err.Error())
 	}
 
 	query = "SELECT id FROM projects WHERE title = ?"
 	var id uint64
 	err = db.db.QueryRow(query, title).Scan(&id)
 	if err != nil {
-		return fmt.Errorf("Unable to query new project id: %s", err)
+		return 0, fmt.Errorf("Unable to query new project id: %s", err)
 	}
 
 	// Associate new tags
@@ -722,46 +605,25 @@ func (db *Database) CreateProject(title, description string, tags []uint64) erro
 	for _, tagId := range tags {
 		_, err := db.db.Exec(query, id, tagId)
 		if err != nil {
-			return fmt.Errorf("Unable to associate tag with project: (%d %d)",
+			return 0, fmt.Errorf("Unable to associate tag with project: (%d %d)",
 				id, tagId, err.Error())
 		}
 	}
-
-	summary, err := db.getSummaryById(id)
-	if err != nil {
-		return fmt.Errorf("Unable to query new project \"%s\": %s", title, err)
-	}
-	db.notifyListeners(func(listener DatabaseEventListener) {
-		listener.OnSummaryUpdate(summary)
-	})
-
-	return db.notifyTags(tags)
+	return id, nil
 }
 
-func (db *Database) GetProject(id uint64, callback func(project Project)) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
-	project, err := db.getProjectById(id)
+func (db *Database) DeleteProject(id uint64) ([]uint64, error) {
+	tags, err := db.GetTagIdsByProjectId(id)
 	if err != nil {
-		return err
+		return []uint64{}, fmt.Errorf("Unable to get tag list: %s", err.Error())
 	}
 
-	callback(project)
-	return nil
-}
-
-func (db *Database) DeleteProject(id uint64) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
-	_, err := db.db.Exec("DELETE FROM projects WHERE id=?;", id)
+	_, err = db.db.Exec("DELETE FROM projects WHERE id=?;", id)
 	if err != nil {
-		return fmt.Errorf("Unable to delete project: %s", err.Error())
+		return []uint64{}, fmt.Errorf("Unable to delete project: %s", err.Error())
 	}
 
-	db.notifyListeners(func(listener DatabaseEventListener) { listener.OnProjectDelete(id) })
-	return nil
+	return tags, nil
 }
 
 func inList(element uint64, lst []uint64) bool {
@@ -790,80 +652,25 @@ func getListDifference(old, new []uint64) (added, deleted []uint64) {
 	return
 }
 
-func (db *Database) notifyProject(id uint64) error {
-	summary, err := db.getSummaryById(id)
-	if err != nil {
-		return err
-	}
-
-	project, err := db.getProjectById(id)
-	if err != nil {
-		return err
-	}
-
-	db.notifyListeners(func(listener DatabaseEventListener) {
-		listener.OnSummaryUpdate(summary)
-		listener.OnProjectUpdate(project)
-	})
-
-	return nil
-}
-
-func (db *Database) notifyTags(tags []uint64) error {
-	tagInfos := []Tag{}
-
-	for _, tagId := range tags {
-		if tagInfo, err := db.getTagById(tagId); err != nil {
-			return err
-		} else {
-			tagInfos = append(tagInfos, tagInfo)
-		}
-	}
-
-	db.notifyListeners(func(listener DatabaseEventListener) {
-		for _, tagInfo := range tagInfos {
-			listener.OnTagUpdate(tagInfo)
-		}
-	})
-
-	return nil
-}
-
-func (db *Database) notifyProjectAndTags(projectId uint64) error {
-	var tagIds []uint64
-	var err error
-	if tagIds, err = db.getTagIds(projectId); err != nil {
-		return err
-	}
-
-	if err := db.notifyProject(projectId); err != nil {
-		return err
-	}
-	return db.notifyTags(tagIds)
-}
-
 func (db *Database) EditProject(
 	id uint64,
 	title, description string,
-	tags []uint64) error {
-
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
+	tags []uint64) ([]uint64, error) {
 
 	// Update the title and description
 	query := "UPDATE projects SET title=?, description=? WHERE id=?;"
 	_, err := db.db.Exec(query, title, description, id)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
-			return fmt.Errorf("Unable to rename project: %s already exists", title)
+			return []uint64{}, fmt.Errorf("Unable to rename project: %s already exists", title)
 		}
-		return fmt.Errorf("Unable to rename project: %s", err.Error())
+		return []uint64{}, fmt.Errorf("Unable to rename project: %s", err.Error())
 	}
 
 	// Get the difference of the tag lists
-	currentTags, err := db.getTagIds(id)
+	currentTags, err := db.GetTagIdsByProjectId(id)
 	if err != nil {
-		return fmt.Errorf("Unable to get tag list: %s", err.Error())
+		return []uint64{}, fmt.Errorf("Unable to get tag list: %s", err.Error())
 	}
 
 	newTags, removedTags := getListDifference(currentTags, tags)
@@ -873,7 +680,7 @@ func (db *Database) EditProject(
 	for _, tagId := range newTags {
 		_, err := db.db.Exec(query, id, tagId)
 		if err != nil {
-			return fmt.Errorf("Unable to associate tag with project: (%d %d)",
+			return []uint64{}, fmt.Errorf("Unable to associate tag with project: (%d %d)",
 				id, tagId, err.Error())
 		}
 	}
@@ -883,125 +690,98 @@ func (db *Database) EditProject(
 	for _, tagId := range removedTags {
 		_, err := db.db.Exec(query, id, tagId)
 		if err != nil {
-			return fmt.Errorf("Unable to disassociate tag from project: (%d %d)",
+			return []uint64{}, fmt.Errorf("Unable to disassociate tag from project: (%d %d)",
 				id, tagId, err.Error())
 		}
 	}
 
-	if err = db.notifyProject(id); err != nil {
-		return err
-	}
-
-	modifiedTags := append(removedTags, newTags...)
-	return db.notifyTags(modifiedTags)
+	return append(removedTags, newTags...), nil
 }
 
 func (db *Database) AddTask(projectId uint64, title, description string, priority uint64) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
 	query := "INSERT INTO tasks (projectId, done, priority, title, description)" +
 		"VALUES (?, 0, ?, ?, ?);"
 	_, err := db.db.Exec(query, projectId, priority, title, description)
 	if err != nil {
 		return fmt.Errorf("Unable add new task: %s", err.Error())
 	}
-
-	return db.notifyProject(projectId)
+	return nil
 }
 
-func (db *Database) DeleteTask(id uint64) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
+func (db *Database) DeleteTask(id uint64) (uint64, error) {
 	query := "SELECT projectId FROM tasks WHERE id = ?"
 	var projectId uint64
 	if err := db.db.QueryRow(query, id).Scan(&projectId); err != nil {
-		return err
+		return 0, err
 	}
 
 	query = "DELETE FROM tasks WHERE id = ?"
 	if _, err := db.db.Exec(query, id); err != nil {
-		return fmt.Errorf("Unable to delete task: %s", err.Error())
+		return 0, fmt.Errorf("Unable to delete task: %s", err.Error())
 	}
-
-	return db.notifyProject(projectId)
+	return projectId, nil
 }
 
-func (db *Database) ToggleTask(id uint64) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
+func (db *Database) ToggleTask(id uint64) (uint64, error) {
 	query := "SELECT projectId FROM tasks WHERE id = ?"
 	var projectId uint64
 	if err := db.db.QueryRow(query, id).Scan(&projectId); err != nil {
-		return fmt.Errorf("Unable to get project id for task %s", err.Error())
+		return 0, fmt.Errorf("Unable to get project id for task %s", err.Error())
 	}
 
 	query = "SELECT done FROM tasks WHERE id = ?"
 	var status bool
 	err := db.db.QueryRow(query, id).Scan(&status)
 	if err != nil {
-		return fmt.Errorf("Unable get task status: %s", err.Error())
+		return 0, fmt.Errorf("Unable get task status: %s", err.Error())
 	}
 
 	query = "UPDATE tasks SET done=? WHERE id=?"
 	_, err = db.db.Exec(query, !status, id)
 	if err != nil {
-		return fmt.Errorf("Unable toggle task: %s", err.Error())
+		return 0, fmt.Errorf("Unable toggle task: %s", err.Error())
 	}
 
-	return db.notifyProject(projectId)
+	return projectId, nil
 }
 
-func (db *Database) EditTask(id uint64, title, description string, priority uint64) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
+func (db *Database) EditTask(id uint64, title, description string, priority uint64) (uint64, error) {
 	query := "SELECT projectId FROM tasks WHERE id = ?"
 	var projectId uint64
 	if err := db.db.QueryRow(query, id).Scan(&projectId); err != nil {
-		return fmt.Errorf("Unable get projectId for task: %s", err.Error())
+		return 0, fmt.Errorf("Unable get projectId for task: %s", err.Error())
 	}
 
 	query = "UPDATE tasks SET title=?, description=?, priority=? WHERE id=?"
 	_, err := db.db.Exec(query, title, description, priority, id)
 	if err != nil {
-		return fmt.Errorf("Unable set task description: %s", err.Error())
+		return 0, fmt.Errorf("Unable set task description: %s", err.Error())
 	}
 
-	return db.notifyProject(projectId)
+	return projectId, nil
 }
 
 func (db *Database) AddSession(projectId, duration, date uint64) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
 	query := "INSERT INTO sessions (projectId, timestamp, duration) VALUES (?, ?, ?)"
 	_, err := db.db.Exec(query, projectId, date, duration)
 	if err != nil {
 		return fmt.Errorf("Unable to create project: %s", err.Error())
 	}
-
-	return db.notifyProjectAndTags(projectId)
+	return nil
 }
 
-func (db *Database) DeleteSession(id uint64) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
+func (db *Database) DeleteSession(id uint64) (uint64, error) {
 	query := "SELECT projectId FROM sessions WHERE id = ?"
 	var projectId uint64
 	if err := db.db.QueryRow(query, id).Scan(&projectId); err != nil {
-		return fmt.Errorf("Unable to get project id for session %s", err.Error())
+		return 0, fmt.Errorf("Unable to get project id for session %s", err.Error())
 	}
 
 	query = "DELETE FROM sessions WHERE id = ?"
 	if _, err := db.db.Exec(query, id); err != nil {
-		return fmt.Errorf("Unable to delete session: %s", err.Error())
+		return 0, fmt.Errorf("Unable to delete session: %s", err.Error())
 	}
-
-	return db.notifyProjectAndTags(projectId)
+	return projectId, nil
 }
 
 func NewDatabase(dbDir string) (*Database, error) {
@@ -1015,8 +795,6 @@ func NewDatabase(dbDir string) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	db.listeners = make(map[DatabaseEventListener]bool)
 
 	return db, nil
 }

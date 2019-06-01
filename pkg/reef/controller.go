@@ -8,286 +8,317 @@
 package reef
 
 import (
-	"encoding/json"
 	"fmt"
+	"sync/atomic"
 
-	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 )
 
-type Request struct {
-	Id                  string            `json:"id"`
-	Type                string            `json:"type"`
-	Action              string            `json:"action"`
-	TagNewParams        TagNewParams      `json:"tagNewParams"`
-	TagDeleteParams     uint64            `json:"tagDeleteParams"`
-	TagEditParams       TagEditParams     `json:"tagEditParams"`
-	ProjectNewParams    ProjectNewParams  `json:"projectNewParams"`
-	ProjectGetParams    uint64            `json:"projectGetParams"`
-	ProjectDeleteParams uint64            `json:"projectDeleteParams"`
-	ProjectEditParams   ProjectEditParams `json:"projectEditParams"`
-	TaskNewParams       TaskNewParams     `json:"taskNewParams"`
-	TaskDeleteParams    uint64            `json:"taskDeleteParams"`
-	TaskToggleParams    uint64            `json:"taskToggleParams"`
-	TaskEditParams      TaskEditParams    `json:"taskEditParams"`
-	SessionNewParams    SessionNewParams  `json:"sessionNewParams"`
-	SessionDeleteParams uint64            `json:"sessionDeleteParams"`
+const (
+	addClient    = 0
+	removeClient = 1
+)
+
+type ctrl struct {
+	Action       uint
+	Id           uint64
+	ResponseChan chan<- Response
+	Sync         chan bool
 }
 
-type TagNewParams struct {
-	Name  string `json:"name"`
-	Color string `json:"color"`
-}
-
-type TagEditParams struct {
-	Id       uint64 `json:"id"`
-	NewName  string `json:"newName"`
-	NewColor string `json:"newColor"`
-}
-
-type ProjectNewParams struct {
-	Name        string   `json:"name"`
-	Tags        []uint64 `json:"tags"`
-	Description string   `json:"description"`
-}
-
-type ProjectEditParams struct {
-	Id          uint64   `json:"id"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Tags        []uint64 `json:"tags"`
-}
-
-type TaskNewParams struct {
-	ProjectId   uint64 `json:"projectId"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Priority    uint64 `json:"priority"`
-}
-
-type TaskEditParams struct {
-	TaskId      uint64 `json:"taskId"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Priority    uint64 `json:"priority"`
-}
-
-type SessionNewParams struct {
-	ProjectId uint64 `json:"projectId"`
-	Duration  uint64 `json:"duration"`
-	Date      uint64 `json:"date"`
-}
-
-type ActionResponse struct {
-	Id      string      `json:"id"`
-	Type    string      `json:"type"`
-	Status  string      `json:"status"`
-	Payload interface{} `json:"payload"`
-}
-
-type BackendMessage struct {
-	Type    string      `json:"type"`
-	Payload interface{} `json:"payload"`
+type requestWrapper struct {
+	ClientId uint64
+	Request  Request
 }
 
 type Controller struct {
-	db      *Database
-	conn    *websocket.Conn
-	callMap map[string]func(*Database, *Request) (bool, error)
+	db           *Database
+	lastLinkId   uint64
+	broadcastMap map[uint64]chan<- Response
+	requestChan  chan requestWrapper
+	controlChan  chan ctrl
+	callMap      map[string]func(*Controller, *Request) (interface{}, error)
+}
+
+func (c *Controller) notifyTags(tagIds []uint64) {
+	for _, tagId := range tagIds {
+		if tagInfo, err := c.db.GetTagById(tagId); err != nil {
+			log.Errorf("Cannot find tag for id: %v. The database is inconsistent.", tagId)
+			continue
+		} else {
+			c.broadcastMessage("TAG_UPDATE", tagInfo)
+		}
+	}
+}
+
+func (c *Controller) notifyProject(id uint64) {
+	summary, err := c.db.GetSummaryById(id)
+	if err != nil {
+		log.Errorf("Cannot find project for id: %v. The database is inconsistent.", id)
+	} else {
+		c.broadcastMessage("SUMMARY_UPDATE", summary)
+	}
+
+	project, err := c.db.GetProjectById(id)
+	if err != nil {
+		log.Errorf("Cannot find project for id: %v. The database is inconsistent.", id)
+	} else {
+		c.broadcastMessage("PROJECT_UPDATE", project)
+	}
+}
+
+func (c *Controller) notifyProjectAndTags(projectId uint64) {
+	var tagIds []uint64
+	var err error
+	if tagIds, err = c.db.GetTagIdsByProjectId(projectId); err != nil {
+		log.Errorf("Cannot find tags for project id: %v. The database is inconsistent.", projectId)
+	} else {
+		c.notifyTags(tagIds)
+	}
+
+	c.notifyProject(projectId)
 }
 
 func (c *Controller) createCallMap() {
-	c.callMap = make(map[string]func(*Database, *Request) (bool, error))
+	c.callMap = make(map[string]func(*Controller, *Request) (interface{}, error))
 
-	c.callMap["TAG_NEW"] = func(db *Database, req *Request) (bool, error) {
+	c.callMap["TAG_NEW"] = func(c *Controller, req *Request) (interface{}, error) {
 		p := req.TagNewParams
-		return true, db.CreateTag(p.Name, p.Color)
+		id, err := c.db.CreateTag(p.Name, p.Color)
+		if err != nil {
+			return nil, err
+		}
+
+		tag, err := c.db.GetTagById(id)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to query new tag \"%s\": %s", p.Name, err)
+		}
+
+		c.broadcastMessage("TAG_UPDATE", tag)
+		return nil, nil
 	}
 
-	c.callMap["TAG_DELETE"] = func(db *Database, req *Request) (bool, error) {
-		return true, db.DeleteTag(req.TagDeleteParams)
+	c.callMap["TAG_DELETE"] = func(c *Controller, req *Request) (interface{}, error) {
+		id := req.TagDeleteParams
+		if err := c.db.DeleteTag(id); err != nil {
+			return nil, err
+		}
+		c.broadcastMessage("TAG_DELETE", id)
+		return nil, nil
 	}
 
-	c.callMap["TAG_EDIT"] = func(db *Database, req *Request) (bool, error) {
+	c.callMap["TAG_EDIT"] = func(c *Controller, req *Request) (interface{}, error) {
 		p := req.TagEditParams
-		return true, db.EditTag(p.Id, p.NewName, p.NewColor)
+		if err := c.db.EditTag(p.Id, p.NewName, p.NewColor); err != nil {
+			return nil, err
+		}
+		payload := map[string]interface{}{
+			"id":       p.Id,
+			"newName":  p.NewName,
+			"newColor": p.NewColor,
+		}
+		c.broadcastMessage("TAG_EDIT", payload)
+		return nil, nil
 	}
 
-	c.callMap["PROJECT_NEW"] = func(db *Database, req *Request) (bool, error) {
+	c.callMap["PROJECT_NEW"] = func(c *Controller, req *Request) (interface{}, error) {
 		p := req.ProjectNewParams
-		return true, db.CreateProject(p.Name, p.Description, p.Tags)
+		id, err := c.db.CreateProject(p.Name, p.Description, p.Tags)
+		if err != nil {
+			return nil, err
+		}
+
+		summary, err := c.db.GetSummaryById(id)
+		if err != nil {
+			return nil, err
+		}
+		c.broadcastMessage("SUMMARY_UPDATE", summary)
+		c.notifyTags(p.Tags)
+		return nil, nil
 	}
 
-	c.callMap["PROJECT_GET"] = func(db *Database, req *Request) (bool, error) {
-		return false, db.GetProject(req.ProjectGetParams, func(project Project) {
-			if err := c.writeResponse(req.Id, project); err != nil {
-				log.Error("Unable to send response to PROJECT_GET:", err)
-			}
-		})
+	c.callMap["PROJECT_GET"] = func(c *Controller, req *Request) (interface{}, error) {
+		id := req.ProjectGetParams
+		project, err := c.db.GetProjectById(id)
+		if err != nil {
+			return nil, err
+		}
+		return project, nil
 	}
 
-	c.callMap["PROJECT_DELETE"] = func(db *Database, req *Request) (bool, error) {
-		return true, db.DeleteProject(req.ProjectDeleteParams)
+	c.callMap["PROJECT_DELETE"] = func(c *Controller, req *Request) (interface{}, error) {
+		id := req.ProjectDeleteParams
+		tags, err := c.db.DeleteProject(id)
+		if err != nil {
+			return nil, err
+		}
+		c.broadcastMessage("PROJECT_DELETE", id)
+		c.notifyTags(tags)
+		return nil, nil
 	}
 
-	c.callMap["PROJECT_EDIT"] = func(db *Database, req *Request) (bool, error) {
+	c.callMap["PROJECT_EDIT"] = func(c *Controller, req *Request) (interface{}, error) {
 		p := req.ProjectEditParams
-		return true, db.EditProject(p.Id, p.Title, p.Description, p.Tags)
+		modifiedTags, err := c.db.EditProject(p.Id, p.Title, p.Description, p.Tags)
+		if err != nil {
+			return nil, err
+		}
+		c.notifyProject(p.Id)
+		c.notifyTags(modifiedTags)
+		return nil, nil
 	}
 
-	c.callMap["TASK_NEW"] = func(db *Database, req *Request) (bool, error) {
+	c.callMap["TASK_NEW"] = func(c *Controller, req *Request) (interface{}, error) {
 		p := req.TaskNewParams
-		return true, db.AddTask(p.ProjectId, p.Title, p.Description, p.Priority)
+		err := c.db.AddTask(p.ProjectId, p.Title, p.Description, p.Priority)
+		if err != nil {
+			return nil, err
+		}
+		c.notifyProject(p.ProjectId)
+		return nil, nil
 	}
 
-	c.callMap["TASK_DELETE"] = func(db *Database, req *Request) (bool, error) {
-		return true, db.DeleteTask(req.TaskDeleteParams)
+	c.callMap["TASK_DELETE"] = func(c *Controller, req *Request) (interface{}, error) {
+		projectId, err := c.db.DeleteTask(req.TaskDeleteParams)
+		if err != nil {
+			return nil, err
+		}
+		c.notifyProject(projectId)
+		return nil, nil
 	}
 
-	c.callMap["TASK_TOGGLE"] = func(db *Database, req *Request) (bool, error) {
-		return true, db.ToggleTask(req.TaskToggleParams)
+	c.callMap["TASK_TOGGLE"] = func(c *Controller, req *Request) (interface{}, error) {
+		projectId, err := c.db.ToggleTask(req.TaskToggleParams)
+		if err != nil {
+			return nil, err
+		}
+		c.notifyProject(projectId)
+		return nil, nil
 	}
 
-	c.callMap["TASK_EDIT"] = func(db *Database, req *Request) (bool, error) {
+	c.callMap["TASK_EDIT"] = func(c *Controller, req *Request) (interface{}, error) {
 		p := req.TaskEditParams
-		return true, db.EditTask(p.TaskId, p.Title, p.Description, p.Priority)
+		projectId, err := c.db.EditTask(p.TaskId, p.Title, p.Description, p.Priority)
+		if err != nil {
+			return nil, err
+		}
+		c.notifyProject(projectId)
+		return nil, nil
 	}
 
-	c.callMap["SESSION_NEW"] = func(db *Database, req *Request) (bool, error) {
+	c.callMap["SESSION_NEW"] = func(c *Controller, req *Request) (interface{}, error) {
 		p := req.SessionNewParams
-		return true, db.AddSession(p.ProjectId, p.Duration, p.Date)
+		if err := c.db.AddSession(p.ProjectId, p.Duration, p.Date); err != nil {
+			return nil, err
+		}
+		c.notifyProjectAndTags(p.ProjectId)
+		return nil, nil
 	}
 
-	c.callMap["SESSION_DELETE"] = func(db *Database, req *Request) (bool, error) {
-		return true, db.DeleteSession(req.SessionDeleteParams)
-	}
-}
-
-func (c *Controller) writeErrorResponse(msgId string, err error) error {
-	resp := ActionResponse{msgId, "ACTION_EXECUTED", "ERROR", err.Error()}
-	data, err := json.Marshal(resp)
-	if err != nil {
-		return err
-	}
-	return c.conn.WriteMessage(websocket.TextMessage, data)
-}
-
-func (c *Controller) writeResponse(msgId string, payload interface{}) error {
-	resp := ActionResponse{msgId, "ACTION_EXECUTED", "OK", payload}
-	data, err := json.Marshal(resp)
-	if err != nil {
-		return err
-	}
-	return c.conn.WriteMessage(websocket.TextMessage, data)
-}
-
-func (c *Controller) writeBackendMessage(msgType string, payload interface{}) error {
-	msg := BackendMessage{msgType, payload}
-	data, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
-	return c.conn.WriteMessage(websocket.TextMessage, data)
-}
-
-func (c *Controller) OnTagUpdate(tag Tag) {
-	if err := c.writeBackendMessage("TAG_UPDATE", tag); err != nil {
-		log.Error("Unable to send TAG_NEW message:", err)
+	c.callMap["SESSION_DELETE"] = func(c *Controller, req *Request) (interface{}, error) {
+		id := req.SessionDeleteParams
+		projectId, err := c.db.DeleteSession(id)
+		if err != nil {
+			return nil, err
+		}
+		c.notifyProjectAndTags(projectId)
+		return nil, nil
 	}
 }
 
-func (c *Controller) OnTagDelete(id uint64) {
-	if err := c.writeBackendMessage("TAG_DELETE", id); err != nil {
-		log.Error("Unable to send TAG_DELETE message:", err)
+func (c *Controller) GetLink() *Link {
+	link := NewLink()
+	linkId := atomic.AddUint64(&c.lastLinkId, 1)
+	sync := make(chan bool)
+	c.controlChan <- ctrl{addClient, linkId, link.ResponseChan, sync}
+	<-sync
+
+	go func() {
+		for {
+			select {
+			case <-link.CloseChan:
+				c.controlChan <- ctrl{removeClient, linkId, nil, sync}
+				<-sync
+				return
+			case req := <-link.RequestChan:
+				c.requestChan <- requestWrapper{linkId, req}
+			}
+		}
+	}()
+
+	return link
+}
+
+func (c *Controller) writeErrorToClient(clientId uint64, msgId string, err error) {
+	if channel, ok := c.broadcastMap[clientId]; ok {
+		channel <- Response{"ACTION_EXECUTED", err.Error(), msgId, "ERROR"}
 	}
 }
 
-func (c *Controller) OnTagList(tags []Tag) {
-	if err := c.writeBackendMessage("TAG_LIST", tags); err != nil {
-		log.Error("Unable to send TAG_LIST message:", err)
+func (c *Controller) writeResponseToClient(clientId uint64, msgId string, payload interface{}) {
+	if channel, ok := c.broadcastMap[clientId]; ok {
+		channel <- Response{"ACTION_EXECUTED", payload, msgId, "OK"}
 	}
 }
 
-func (c *Controller) OnTagEdit(id uint64, newName, newColor string) {
-	payload := map[string]interface{}{"id": id, "newName": newName, "newColor": newColor}
-	if err := c.writeBackendMessage("TAG_EDIT", payload); err != nil {
-		log.Error("Unable to send TAG_EDIT message:", err)
+func (c *Controller) broadcastMessage(msgType string, payload interface{}) {
+	for _, channel := range c.broadcastMap {
+		channel <- Response{msgType, payload, "", ""}
 	}
 }
 
-func (c *Controller) OnSummaryUpdate(summary Summary) {
-	if err := c.writeBackendMessage("SUMMARY_UPDATE", summary); err != nil {
-		log.Error("Unable to send SUMMARY_NEW message:", err)
+func (c *Controller) sendInitialData(channel chan<- Response) {
+	if tags, err := c.db.GetTagList(); err != nil {
+		log.Errorf("Unable to get the tag list: %s", err)
+	} else {
+		channel <- Response{"TAG_LIST", tags, "", ""}
+	}
+
+	if summaries, err := c.db.GetSummaryList(); err != nil {
+		log.Errorf("Unable to get the summary list: %s", err)
+	} else {
+		channel <- Response{"SUMMARY_LIST", summaries, "", ""}
 	}
 }
 
-func (c *Controller) OnSummaryList(summaries []Summary) {
-	if err := c.writeBackendMessage("SUMMARY_LIST", summaries); err != nil {
-		log.Error("Unable to send SUMMARY_LIST message:", err)
-	}
-}
-
-func (c *Controller) OnProjectDelete(id uint64) {
-	if err := c.writeBackendMessage("PROJECT_DELETE", id); err != nil {
-		log.Error("Unable to send PROJECT_DELETE message:", err)
-	}
-}
-
-func (c *Controller) OnProjectUpdate(project Project) {
-	if err := c.writeBackendMessage("PROJECT_UPDATE", project); err != nil {
-		log.Error("Unable to send PROJECT_UPDATE message:", err)
-	}
-}
-
-func (c *Controller) HandleConnection() {
-	c.db.AddEventListener(c)
-	defer c.db.RemoveEventListener(c)
-
+func (c *Controller) handleRequests() {
 	for {
-		messageType, data, err := c.conn.ReadMessage()
-		if err != nil {
-			return
-		}
-
-		if messageType != websocket.TextMessage {
-			continue
-		}
-
-		var request Request
-		err = json.Unmarshal(data, &request)
-		if err != nil {
-			log.Error("Unable to unmarshal request: ", err)
-			continue
-		}
-
-		f, ok := c.callMap[request.Action]
-		if !ok {
-			err = c.writeErrorResponse(request.Id, fmt.Errorf("Unsupported action: %s", request.Action))
-			if err != nil {
-				log.Error("Unable to write to a websocket: ", err)
-				return
+		select {
+		case req := <-c.requestChan:
+			f, ok := c.callMap[req.Request.Action]
+			if !ok {
+				c.writeErrorToClient(req.ClientId, req.Request.Id,
+					fmt.Errorf("Unsupported action: %s", req.Request.Action))
 			}
-		} else {
-			ackSuccess, err := f(c.db, &request)
-			var innerErr error
-			innerErr = nil
+
+			payload, err := f(c, &req.Request)
 			if err != nil {
-				innerErr = c.writeErrorResponse(request.Id, err)
-			} else if ackSuccess {
-				innerErr = c.writeResponse(request.Id, nil)
+				c.writeErrorToClient(req.ClientId, req.Request.Id, err)
 			}
-			if innerErr != nil {
-				log.Error("Unable to write to a websocket: ", innerErr)
-				return
+
+			c.writeResponseToClient(req.ClientId, req.Request.Id, payload)
+		case ctrl := <-c.controlChan:
+			switch ctrl.Action {
+			case addClient:
+				c.broadcastMap[ctrl.Id] = ctrl.ResponseChan
+				ctrl.Sync <- true
+				c.sendInitialData(ctrl.ResponseChan)
+			case removeClient:
+				delete(c.broadcastMap, ctrl.Id)
+				ctrl.Sync <- true
 			}
 		}
 	}
 }
 
-func NewController(db *Database, conn *websocket.Conn) *Controller {
+func NewController(db *Database) *Controller {
 	c := new(Controller)
+	c.lastLinkId = 0
 	c.db = db
-	c.conn = conn
+	c.broadcastMap = make(map[uint64]chan<- Response, 250)
+	c.requestChan = make(chan requestWrapper, 100)
+	c.controlChan = make(chan ctrl)
 	c.createCallMap()
+	go c.handleRequests()
 	return c
 }
