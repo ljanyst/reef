@@ -1,1 +1,1 @@
-&{Web:{BindAddresses:[{Host:[fe80::7bf:88c6:6820:3c68] Port:7652 IsHttps:false} {Host:127.0.0.1 Port:7651 IsHttps:true}] Https:{Cert:cert.pem Key:key.pem}} Backend:{DatabaseDirectory:data}}
+&{Web:{BindAddresses:[{Host:[fe80::7bf:88c6:6820:3c68] Port:7652 IsHttps:false} {Host:127.0.0.1 Port:7651 IsHttps:true}] Https:{Cert:cert.pem Key:key.pem} EnableAuth:false HtpasswdFile:} Backend:{DatabaseDirectory:data}}

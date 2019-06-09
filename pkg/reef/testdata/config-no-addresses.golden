@@ -1,1 +1,1 @@
-&{Web:{BindAddresses:[{Host:localhost Port:7651 IsHttps:false}] Https:{Cert:cert.pem Key:key.pem}} Backend:{DatabaseDirectory:data}}
+&{Web:{BindAddresses:[{Host:localhost Port:7651 IsHttps:false}] Https:{Cert:cert.pem Key:key.pem} EnableAuth:false HtpasswdFile:} Backend:{DatabaseDirectory:data}}

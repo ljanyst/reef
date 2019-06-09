@@ -54,9 +54,9 @@ func TestOpts(t *testing.T) {
 	for _, tc := range cases {
 		opts := NewReefOpts()
 		jsonFile := filepath.Join("testdata", tc+".json")
-		err := opts.LoadJson(jsonFile)
+		err := opts.LoadYaml(jsonFile)
 		if err != nil {
-			t.Errorf("Unable to load json configuration from %s", jsonFile)
+			t.Errorf("Unable to load json configuration: %s", err)
 		}
 
 		optsBytes := []byte(fmt.Sprintf("%+v\n", opts))
