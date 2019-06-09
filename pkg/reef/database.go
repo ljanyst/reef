@@ -352,25 +352,33 @@ func (db *Database) GetTagList() ([]Tag, error) {
 	return tags, nil
 }
 
-func (db *Database) GetTagIdsByProjectId(id uint64) ([]uint64, error) {
-	tagIds := []uint64{}
-	query := "SELECT tagId FROM projectTags WHERE projectId = ?;"
+func (db *Database) getIdsById(query string, id uint64) ([]uint64, error) {
+	ids := []uint64{}
+
 	rows, err := db.db.Query(query, id)
 	if err != nil {
 		return []uint64{}, err
 	}
 	for rows.Next() {
-		var tagId uint64
-		err := rows.Scan(&tagId)
+		var readId uint64
+		err := rows.Scan(&readId)
 		if err != nil {
 			return []uint64{}, err
 		}
-		tagIds = append(tagIds, tagId)
+		ids = append(ids, readId)
 	}
 	if err := rows.Err(); err != nil {
 		return []uint64{}, err
 	}
-	return tagIds, nil
+	return ids, nil
+}
+
+func (db *Database) GetTagIdsByProjectId(id uint64) ([]uint64, error) {
+	return db.getIdsById("SELECT tagId FROM projectTags WHERE projectId = ?;", id)
+}
+
+func (db *Database) GetProjectIdsByTagId(id uint64) ([]uint64, error) {
+	return db.getIdsById("SELECT projectId FROM projectTags WHERE tagId = ?;", id)
 }
 
 func (db *Database) GetAllTagIds() ([]uint64, error) {
@@ -556,16 +564,28 @@ func (db *Database) CreateTag(name string, color string) (uint64, error) {
 	return id, nil
 }
 
-func (db *Database) DeleteTag(id uint64) error {
+func (db *Database) DeleteTag(id uint64) ([]uint64, error) {
 	if id == 1 {
-		return fmt.Errorf("Cannot delete 'Archived'")
+		return []uint64{}, fmt.Errorf("Cannot delete 'Archived'")
 	}
 
-	_, err := db.db.Exec("DELETE FROM tags WHERE id=?;", id)
+	projIds, err := db.GetProjectIdsByTagId(id)
 	if err != nil {
-		return fmt.Errorf("Unable to delete tag: %s", err.Error())
+		return []uint64{}, fmt.Errorf("Unable to get projects associated with tag: %s", err)
 	}
-	return nil
+
+	_, err = db.db.Exec("DELETE FROM projectTags WHERE tagId = ?;", id)
+	if err != nil {
+		return []uint64{},
+			fmt.Errorf("Unable to disassociate projects from tag %d: %s", id, err)
+	}
+
+	_, err = db.db.Exec("DELETE FROM tags WHERE id=?;", id)
+	if err != nil {
+		return []uint64{}, fmt.Errorf("Unable to delete tag: %s", err.Error())
+	}
+
+	return projIds, nil
 }
 
 func (db *Database) EditTag(id uint64, newName, newColor string) error {

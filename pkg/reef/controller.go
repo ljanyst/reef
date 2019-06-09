@@ -67,6 +67,12 @@ func (c *Controller) notifyProject(id uint64) {
 	}
 }
 
+func (c *Controller) notifyProjects(projectIds []uint64) {
+	for _, projectId := range projectIds {
+		c.notifyProject(projectId)
+	}
+}
+
 func (c *Controller) notifyProjectAndTags(projectId uint64) {
 	var tagIds []uint64
 	var err error
@@ -100,9 +106,11 @@ func (c *Controller) createCallMap() {
 
 	c.callMap["TAG_DELETE"] = func(c *Controller, req *Request) (interface{}, error) {
 		id := req.TagDeleteParams
-		if err := c.db.DeleteTag(id); err != nil {
+		projectIds, err := c.db.DeleteTag(id)
+		if err != nil {
 			return nil, err
 		}
+		c.notifyProjects(projectIds)
 		c.broadcastMessage("TAG_DELETE", id)
 		return nil, nil
 	}
