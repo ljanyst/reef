@@ -605,8 +605,8 @@ func (db *Database) CreateProject(title, description string, tags []uint64) (uin
 	for _, tagId := range tags {
 		_, err := db.db.Exec(query, id, tagId)
 		if err != nil {
-			return 0, fmt.Errorf("Unable to associate tag with project: (%d %d)",
-				id, tagId, err.Error())
+			return 0, fmt.Errorf("Unable to associate tag with project: (%d %d): %s",
+				id, tagId, err)
 		}
 	}
 	return id, nil
@@ -680,8 +680,8 @@ func (db *Database) EditProject(
 	for _, tagId := range newTags {
 		_, err := db.db.Exec(query, id, tagId)
 		if err != nil {
-			return []uint64{}, fmt.Errorf("Unable to associate tag with project: (%d %d)",
-				id, tagId, err.Error())
+			return []uint64{}, fmt.Errorf("Unable to associate tag with project: (%d %d): %s",
+				id, tagId, err)
 		}
 	}
 
@@ -690,8 +690,8 @@ func (db *Database) EditProject(
 	for _, tagId := range removedTags {
 		_, err := db.db.Exec(query, id, tagId)
 		if err != nil {
-			return []uint64{}, fmt.Errorf("Unable to disassociate tag from project: (%d %d)",
-				id, tagId, err.Error())
+			return []uint64{}, fmt.Errorf("Unable to disassociate tag from project: (%d %d): %s",
+				id, tagId, err)
 		}
 	}
 

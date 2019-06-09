@@ -194,7 +194,7 @@ func RunWebServer(opts *ReefOpts) {
 		authFile := opts.Web.HtpasswdFile
 		passwords, err := htpasswd.ParseHtpasswdFile(authFile)
 		if err != nil {
-			log.Fatal(`Authentication enabled but cannot open htpassword file "%s": %s`,
+			log.Fatalf(`Authentication enabled but cannot open htpassword file "%s": %s`,
 				authFile, err)
 		}
 
