@@ -217,13 +217,13 @@ class ProjectView extends Component {
       <table>
         <tbody>
           <tr>
-            <td style={styles.tooltipTableLabel}>This month:</td>
+            <td style={styles.tooltipTableLabel}>Past month:</td>
             <td style={styles.tooltipTableValue}>
               {minutesToString(this.props.durationMonth)}
             </td>
           </tr>
           <tr>
-            <td style={styles.tooltipTableLabel}>This week:</td>
+            <td style={styles.tooltipTableLabel}>Past week:</td>
             <td style={styles.tooltipTableValue}>
               {minutesToString(this.props.durationWeek)}
             </td>
