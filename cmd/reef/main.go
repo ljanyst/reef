@@ -55,7 +55,7 @@ func main() {
 	// Configuration
 	opts := reef.NewReefOpts()
 	if *configFile != "" {
-		err := opts.LoadJson(*configFile)
+		err := opts.LoadYaml(*configFile)
 		if err != nil {
 			log.Fatalf("Failed to read configuration: %s", err)
 		}

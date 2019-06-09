@@ -8,10 +8,10 @@
 package reef
 
 import (
-	"encoding/json"
-	log "github.com/sirupsen/logrus"
+	"fmt"
 	"io/ioutil"
-	"reflect"
+
+	"github.com/ghodss/yaml"
 )
 
 type BindAddress struct {
@@ -50,60 +50,17 @@ func NewReefOpts() (opts *ReefOpts) {
 	return
 }
 
-func fillDefaults(target interface{}, source interface{}) {
-	sKind := reflect.TypeOf(source).Kind()
-	tKind := reflect.TypeOf(target).Kind()
-	if sKind != reflect.Ptr {
-		log.Errorf("Default opt source needs to be a pointer but got: %s", sKind)
-	}
-	if tKind != reflect.Ptr {
-		log.Errorf("Opt target needs to be a pointer but got: %s", tKind)
-	}
-
-	sValue := reflect.ValueOf(source)
-	tValue := reflect.ValueOf(target)
-	sValue = reflect.Indirect(sValue)
-	tValue = reflect.Indirect(tValue)
-
-	if sValue.Type() != tValue.Type() {
-		log.Errorf("Source and target type mismatch: %v vs %v", sValue.Type(),
-			tValue.Type())
-		return
-	}
-
-	if sValue.Kind() == reflect.Struct {
-		for i := 0; i < sValue.NumField(); i++ {
-			sFieldValue := sValue.Field(i).Interface()
-			tFieldValue := tValue.Field(i).Interface()
-			fillDefaults(&tFieldValue, &sFieldValue)
-		}
-		return
-	}
-
-	if tValue.Interface() == reflect.Zero(reflect.TypeOf(target)).Interface() {
-		tValue.Set(sValue)
-	}
-}
-
-func (opts *ReefOpts) fillDefaults() {
-	def := new(ReefOpts)
-	fillDefaults(opts, def)
-}
-
-// Load the configuration data from a JSON file
-func (opts *ReefOpts) LoadJson(fileName string) (err error) {
+// Load the configuration data from a Yaml file
+func (opts *ReefOpts) LoadYaml(fileName string) error {
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		log.Errorf("Unable to read the configuration file: %v", err)
-		return
+		return fmt.Errorf("Unable to read the configuration file %s: %s", fileName, err)
 	}
 
-	err = json.Unmarshal(data, &opts)
+	err = yaml.Unmarshal(data, opts)
 	if err != nil {
-		log.Errorf("Malformed config: %v", err)
-		return
+		return fmt.Errorf("Malformed config %s: %s", fileName, err)
 	}
 
-	opts.fillDefaults()
-	return
+	return nil
 }
