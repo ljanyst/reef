@@ -638,6 +638,12 @@ func (db *Database) DeleteProject(id uint64) ([]uint64, error) {
 		return []uint64{}, fmt.Errorf("Unable to get tag list: %s", err.Error())
 	}
 
+	_, err = db.db.Exec("DELETE FROM projectTags WHERE projectId = ?;", id)
+	if err != nil {
+		return []uint64{},
+			fmt.Errorf("Unable to disassociate tags from project %d: %s", id, err)
+	}
+
 	_, err = db.db.Exec("DELETE FROM projects WHERE id=?;", id)
 	if err != nil {
 		return []uint64{}, fmt.Errorf("Unable to delete project: %s", err.Error())
