@@ -21,6 +21,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const currentVersion = 3
+
 type Database struct {
 	db *sql.DB
 }
@@ -56,7 +58,7 @@ type CommandEntry struct {
 func (db *Database) initializeNew() error {
 	initializationQueries := []CommandEntry{
 		{
-			`INSERT INTO metadata (key, value) VALUES ("version", "2");`,
+			fmt.Sprintf(`INSERT INTO metadata (key, value) VALUES ("version", "%d");`, currentVersion),
 			"Unable to set the database version",
 		},
 		{
@@ -68,8 +70,10 @@ func (db *Database) initializeNew() error {
 		},
 		{
 			"INSERT INTO tags (name, color) " +
-				`VALUES ("Archived", "#adadad");`,
-			"Unable to create the archived tag",
+				"VALUES" +
+				`("Limbo", "#778899"),` +
+				`("Archived", "#3cb371");`,
+			"Unable to create the built-in tags",
 		},
 		{
 			"CREATE TABLE projects (" +
@@ -145,6 +149,68 @@ func upgradeFrom1To2(db *sql.DB) error {
 	return executeQueries(db, queries)
 }
 
+func upgradeFrom2To3(db *sql.DB) error {
+	log.Info("Upgrading database from version 2 to version 3")
+	queries := []CommandEntry{
+		{
+			"ALTER TABLE tags RENAME TO _tags_old;",
+			"Unable to rename tags to _tags_old",
+		},
+		{
+			"CREATE TABLE tags (" +
+				"id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+				"name STRING UNIQUE NOT NULL, " +
+				"color STRING NOT NULL);",
+			"Unable to create the tags table",
+		},
+		{
+			"INSERT INTO tags (name, color) " +
+				"VALUES" +
+				`("Limbo", "#778899");`,
+			"Unable to create the Limbo tag",
+		},
+		{
+			"INSERT INTO tags (id, name, color) " +
+				`SELECT id+1, name, color ` +
+				"FROM _tags_old;",
+			"Unable to copy the rows to the new tags table",
+		},
+		{
+			"DROP TABLE _tags_old;",
+			"Unable to drop the old tags table",
+		},
+		{
+			`UPDATE tags SET color = "#3cb371" WHERE id = 2`,
+			"Cannot update the color of the Archived tag",
+		},
+		{
+			"ALTER TABLE projectTags RENAME TO _projectTags_old;",
+			"Unable to rename projectTags to _projectTags_old",
+		},
+		{
+			"CREATE TABLE projectTags (" +
+				"projectId INTEGER NOT NULL, " +
+				"tagId INTEGER NOT NULL, " +
+				"CONSTRAINT PK_Pair PRIMARY KEY (projectId, tagId)" +
+				"FOREIGN KEY(projectId) REFERENCES projects(id)," +
+				"FOREIGN KEY(tagId) REFERENCES tags(id));",
+			"Unable to create the project-tag table.",
+		},
+		{
+			"INSERT INTO projectTags (projectId, tagId) " +
+				`SELECT projectId, tagId+1 ` +
+				"FROM _projectTags_old;",
+			"Unable to copy the rows to the new tasks table",
+		},
+		{
+			"DROP TABLE _projectTags_old;",
+			"Unable to drop the old projectTags table",
+		},
+	}
+
+	return executeQueries(db, queries)
+}
+
 func executeQueries(db *sql.DB, queries []CommandEntry) error {
 	for _, command := range queries {
 		_, err := db.Exec(command.Query)
@@ -159,6 +225,7 @@ func executeQueries(db *sql.DB, queries []CommandEntry) error {
 func getUpgraders() map[uint64]func(db *sql.DB) error {
 	upgraders := make(map[uint64]func(db *sql.DB) error)
 	upgraders[1] = upgradeFrom1To2
+	upgraders[2] = upgradeFrom2To3
 	return upgraders
 }
 
@@ -250,7 +317,6 @@ func (db *Database) initialize(dbDir string) (err error) {
 
 	log.Info("Database version: ", fileVersion)
 
-	const currentVersion = 2
 	if fileVersion != currentVersion {
 		if err = db.db.Close(); err != nil {
 			log.Error("Unable to close the database: ", err)
@@ -565,8 +631,12 @@ func (db *Database) CreateTag(name string, color string) (uint64, error) {
 }
 
 func (db *Database) DeleteTag(id uint64) ([]uint64, error) {
-	if id == 1 {
+	if id == 2 {
 		return []uint64{}, fmt.Errorf("Cannot delete 'Archived'")
+	}
+
+	if id == 1 {
+		return []uint64{}, fmt.Errorf("Cannot delete 'Limbo'")
 	}
 
 	projIds, err := db.GetProjectIdsByTagId(id)
@@ -589,8 +659,12 @@ func (db *Database) DeleteTag(id uint64) ([]uint64, error) {
 }
 
 func (db *Database) EditTag(id uint64, newName, newColor string) error {
-	if id == 1 {
+	if id == 2 {
 		return fmt.Errorf("Cannot edit 'Archived'")
+	}
+
+	if id == 1 {
+		return fmt.Errorf("Cannot edit 'Limbo'")
 	}
 
 	_, err := db.db.Exec("UPDATE tags SET name=?, color=? WHERE id=?;", newName, newColor, id)
