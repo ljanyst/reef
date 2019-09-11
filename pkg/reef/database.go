@@ -278,7 +278,7 @@ func (db *Database) upgrade(dbDir string, fileVersion, currentVersion uint64) er
 		}
 	}
 
-	_, err = db.db.Exec(`UPDATE metadata SET value=? WHERE key="version";`, strconv.FormatUint(2, 10))
+	_, err = db.db.Exec(fmt.Sprintf(`UPDATE metadata SET value=%d WHERE key="version";`, currentVersion))
 	if err != nil {
 		return fmt.Errorf("Unable to update version number in the database metadata")
 	}
