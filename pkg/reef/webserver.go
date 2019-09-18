@@ -212,6 +212,7 @@ func RunWebServer(opts *ReefOpts) {
 	wg.Add(len(opts.Web.BindAddresses))
 
 	for _, addr := range opts.Web.BindAddresses {
+		addr := addr
 		go func() {
 			protocol := "http"
 			if addr.IsHttps {
