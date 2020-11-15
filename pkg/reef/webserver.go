@@ -20,6 +20,7 @@ import (
 
 	"github.com/foomo/htpasswd"
 	"github.com/gorilla/websocket"
+	"github.com/ljanyst/go-srvutils/fs"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -189,7 +190,8 @@ func RunWebServer(opts *ReefOpts) {
 
 	webSocketHandler := NewWebSocketHandler(database)
 
-	ui := http.FileServer(Assets)
+	assets := &fs.Index404Fs{Assets}
+	ui := http.FileServer(assets)
 	if opts.Web.EnableAuth {
 		authFile := opts.Web.HtpasswdFile
 		passwords, err := htpasswd.ParseHtpasswdFile(authFile)
